@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>魔女ルンナ/魔女Runna🔮🌕</title>
+    <link rel="icon" href="TT.png" type="image/png">
+    <style>
+        /* --- 全域設定 --- */
+        :root {
+            --primary-color: #6a4c93; /* 魔女紫 */
+            --accent-color: #ffd700;  /* 金色 */
+            --bg-light: #f9f9f9;
+            --text-dark: #333;
+            --transition: all 0.3s ease;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; 
+            line-height: 1.7; 
+            color: var(--text-dark); 
+            background-color: #fff;
+            overflow-x: hidden;
+        }
+
+        /* 區塊通用樣式 */
+        section { padding: 80px 20px; max-width: 1100px; margin: 0 auto; }
+        .block-title { 
+            text-align: center; 
+            margin-bottom: 50px; 
+            font-size: 2.2rem; 
+            position: relative;
+            padding-bottom: 0px;
+        }
+
+
+        /* --- 第一區塊：封面 --- */
+        #hero {
+            height: 100vh;
+            background: linear-gradient(rgba(0,0,0,0), rgba(0,0,0,0)), url('封面.jpg') no-repeat center center/cover;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero-text {
+            font-size: clamp(2rem, 8vw, 3.5rem);
+            font-weight: bold;
+            text-shadow: 0 4px 15px rgba(0,0,0,0.6);
+            margin-bottom: 10px;
+        }
+
+        .scroll-icon {
+            position: absolute;
+            bottom: 40px;
+            font-size: 1.5rem;
+            animation: bounce 2s infinite;
+            opacity: 0.8;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-10px);}
+            60% {transform: translateY(-5px);}
+        }
+
+        /* --- 第二區塊：自介 --- */
+        #about { display: flex; align-items: center; flex-wrap: wrap; gap: 50px; }
+        .about-img { flex: 1; min-width: 300px; text-align: center; }
+        .about-img img { 
+            width: 100%; 
+            max-width: 450px;
+            border-radius: 20px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0); 
+        }
+        .about-content { flex: 1.2; min-width: 300px; }
+        .about-content h2 { margin-bottom: 20px; font-size: 2rem; color: var(--primary-color); }
+
+        /* --- 網格佈局 (影片 & 夥伴通用) --- */
+        .grid-container { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
+            gap: 25px; 
+        }
+
+        /* 影片容器 (RWD 比例 16:9) */
+        .video-container { 
+            position: relative; 
+            padding-bottom: 56.25%; 
+            height: 0; 
+            overflow: hidden; 
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            transition: var(--transition);
+        }
+        .video-container:hover { transform: translateY(-5px); }
+        .video-container iframe { 
+            position: absolute; 
+            top: 0; left: 0; width: 100%; height: 100%; 
+            border: none;
+        }
+
+        /* 夥伴卡片樣式 */
+        .partner-item { 
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px; 
+            text-align: center; 
+            transition: var(--transition);
+            border: 1px solid #eee;
+        }
+        .partner-item:hover { 
+            transform: translateY(-10px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+            border-color: var(--primary-color);
+        }
+        .partner-item img { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin-bottom: 15px; }
+
+        /* --- 獎項 --- */
+        #awards { text-align: center; background-color: var(--bg-light); border-radius: 30px; }
+        .award-main img { 
+            max-width: 500px; 
+            width: 100%; 
+            margin: 0 auto 30px; 
+            display: block; 
+            border-radius: 15px;
+        }
+
+        /* --- 社群連結 (重點修改：適應電腦與手機) --- */
+        .social-links { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            gap: 30px; 
+            flex-wrap: wrap; 
+        }
+        .social-links img { 
+            width: 50px; /* 電腦版大小 */
+            height: auto; 
+            transition: var(--transition);
+        }
+        .social-links a:hover img { 
+            transform: scale(1.2); 
+        }
+
+        /* --- RWD 手機版調整 --- */
+        @media (max-width: 768px) {
+            section { padding: 50px 20px; }
+            .hero-text { font-size: 2rem; }
+            #about { flex-direction: column; text-align: center; }
+            
+            .social-links { gap: 20px; }
+            .social-links img { width: 40px; } /* 手機版縮小 */
+            
+            .grid-container { grid-template-columns: repeat(2, 1fr); gap: 15px; } /* 手機一排兩個 */
+        }
+
+        @media (max-width: 480px) {
+            .grid-container { grid-template-columns: 1fr; } /* 小手機一排一個 */
+        }
+    </style>
+</head>
+<body>
+
+    <section id="hero">
+        <h1 class="hero-text">魔女ルンナ</h1>
+        <h1 class="hero-text" style="color: var(--accent-color);">魔女Runna🔮🌕</h1>
+        <p style="font-size: 1.1rem; letter-spacing: 2px;">JP & HK Vtuber ┊︎ Vsinger</p>
+        <div class="scroll-icon">▽</div>
+    </section>
+
+    <section id="about">
+        <div class="about-img">
+            <img src="RU.png" alt="Runna Profile">
+        </div>
+        <div class="about-content">
+            <h2 class="block-title" style="text-align: left;">魔女ルンナ / 魔女Runna</h2>
+            <p>自介(待打)</p>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="block-title">活動紀錄</h2>
+        <div class="grid-container">
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/ftFA3ICBpgI"></iframe></div>
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/lPFJ1WKs7cE"></iframe></div>
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/LGn-7C7HeiA"></iframe></div>
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/T6bKI3oDeA8"></iframe></div>
+        </div>
+        
+    </section>
+
+    <section>
+        <h2 class="block-title">合作夥伴</h2>
+        <div class="grid-container">
+            <div class="partner-item"><img src="https://via.placeholder.com/150"><p>夥伴 A</p></div>
+            <div class="partner-item"><img src="https://via.placeholder.com/150"><p>夥伴 B</p></div>
+            <div class="partner-item"><img src="https://via.placeholder.com/150"><p>夥伴 C</p></div>
+            <div class="partner-item"><img src="https://via.placeholder.com/150"><p>夥伴 D</p></div>
+        </div>
+    </section>
+
+    <section id="awards">
+        <h2 class="block-title">榮譽</h2>
+        <div class="award-main">
+            <a href="https://x.com/goldenv2023/status/1997286076537565693">
+            <img src="https://pbs.twimg.com/media/G7fJGR_bcAA_Ivt?format=jpg&name=medium" alt="Award"></a>
+            <p><strong>第三屆 金V獎 年度最佳原創歌曲獎</strong></p>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="block-title">影片作品</h2>
+        <div class="grid-container">
+
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/c6dQQyxOEi8"></iframe></div>
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/cJrhTU1Ty-w"></iframe></div>
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/B4-jWhSTjrM"></iframe></div>
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/x6jpdDvJ1KU"></iframe></div>
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/mwIkS4_63Vc"></iframe></div>
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/jLCZf1UT4zw"></iframe></div>
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/V8mzO6_u6cA"></iframe></div>
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/fyOS2FMk_3Y"></iframe></div>
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/b2IJ7z2nZU8"></iframe></div>
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/eQ8uhQx8KvA"></iframe></div>
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/sruZuMOKOL8"></iframe></div>
+            <div class="video-container"><iframe src="https://www.youtube.com/embed/QBsVjeONVEg"></iframe></div>
+            
+        </div>
+    </section>
+
+    <section>
+        <h2 class="block-title">社群追蹤</h2>
+        <div class="social-links">
+            <a href="https://www.youtube.com/@rururunautau" target="_blank"><img src="youtube.svg"></a>
+            <a href="https://x.com/rururunautau" target="_blank"><img src="twitter.svg"></a>
+            <a href="https://www.twitch.tv/rururunautau" target="_blank"><img src="twitch.svg"></a>
+            <a href="https://www.instagram.com/rururunautau/" target="_blank"><img src="instagram.svg"></a>
+            <a href="https://discord.gg/r5pEQcPmHZ" target="_blank"><img src="discord.svg"></a>
+            <a href="https://www.threads.net/@rururunautau" target="_blank"><img src="threads.svg"></a>
+        </div>
+    </section>
+
+    <footer style="text-align: center; padding: 40px; color: #999; font-size: 0.8rem;">
+        &copy; 2025 魔女ルンナ Runna.
+    </footer>
+
+</body>
+</html>
