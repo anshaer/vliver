@@ -81,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // 5. 渲染社群 Icons
             const socialIcons = document.getElementById("social-icons");
             socialIcons.innerHTML = `
-                <a href="${data.social.x}" target="_blank" class="social-icon" title="X"><i class="fa-solid fa-hashtag"></i></a>
+                <a href="${data.social.x}" target="_blank" class="social-icon" title="X"><i class="fab fa-x-twitter"></i></a>
                 <a href="${data.social.yt}" target="_blank" class="social-icon" title="YouTube"><i class="fab fa-youtube"></i></a>
                 <a href="${data.social.twitch}" target="_blank" class="social-icon" title="Twitch"><i class="fab fa-twitch"></i></a>
                 <a href="mailto:${data.social.email}" class="social-icon" title="傳送 Email"><i class="fas fa-envelope"></i></a>
