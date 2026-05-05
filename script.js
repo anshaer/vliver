@@ -43,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const galleryCaption = document.getElementById("gallery-caption");
             const prevBtn = document.getElementById("prev-btn");
             const nextBtn = document.getElementById("next-btn");
+            let autoplayTimer = null;
 
             const updateGallery = () => {
                 if (data.gallery && data.gallery.length > 0) {
@@ -53,17 +54,31 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             };
 
+            // 啟動自動播放
+            const startAutoplay = () => {
+                if (autoplayTimer) {
+                    clearInterval(autoplayTimer);
+                }
+                autoplayTimer = setInterval(() => {
+                    currentIndex = (currentIndex + 1) % data.gallery.length;
+                    updateGallery();
+                }, 5000); // 5000 毫秒 = 5 秒
+            };
+
             if (data.gallery && data.gallery.length > 0) {
                 updateGallery();
+                startAutoplay(); // 初始化時啟動計時器
 
                 prevBtn.addEventListener("click", () => {
                     currentIndex = (currentIndex - 1 + data.gallery.length) % data.gallery.length;
                     updateGallery();
+                    startAutoplay(); // 重置計時器
                 });
 
                 nextBtn.addEventListener("click", () => {
                     currentIndex = (currentIndex + 1) % data.gallery.length;
                     updateGallery();
+                    startAutoplay(); // 重置計時器
                 });
             }
 
@@ -79,7 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             // 5. 渲染社群 Icons
-const socialIcons = document.getElementById("social-icons");
+            const socialIcons = document.getElementById("social-icons");
 socialIcons.innerHTML = `
   <a href="${data.social.x}" target="_blank" class="social-icon" title="X"><i class="fab fa-twitter"></i></a>
   <a href="${data.social.yt}" target="_blank" class="social-icon" title="YouTube"><i class="fab fa-youtube"></i></a>
