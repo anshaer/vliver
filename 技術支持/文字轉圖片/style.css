@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Shippori+Mincho&family=Zen+Maru+Gothic&family=Kosugi+Maru&family=Klee+One&family=LXGW+WenKai+Mono+TC&display=swap');
+
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 20px;
+}
+
+canvas {
+    border: 1px solid #ccc;
+    margin-top: 20px;
+    width: 800pt;
+}
+
+.controls {
+    margin-bottom: 20px;
+}
+/* style.css */
+
+/* ... (其他樣式) */
+
+#downloadButton {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    background-color: #007bff; /* 藍色背景 */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    margin-top: 15px;
+}
+
+#downloadButton:hover {
+    background-color: #0056b3;
+}

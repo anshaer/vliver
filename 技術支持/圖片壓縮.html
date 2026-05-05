@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖片壓縮與格式轉換工具</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; background-color: #f8f9fa; }
+        .container { border: 2px dashed #bbb; padding: 25px; border-radius: 12px; text-align: center; background: #fff; }
+        .controls { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: left; background: #f1f3f5; padding: 15px; border-radius: 8px; }
+        .control-group { display: flex; flex-direction: column; }
+        
+        .info-grid { margin: 20px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .info-card { background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; }
+        .info-val { font-size: 1.1em; font-weight: bold; color: #007bff; }
+        
+        .preview-container { margin-top: 20px; text-align: center; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        canvas { max-width: 100%; height: auto; border: 1px solid #ddd; margin: 15px 0; }
+        
+        button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-refresh { background-color: #28a745; color: white; width: 100%; margin-top: 10px; }
+        .btn-download { background-color: #007bff; color: white; width: 100%; padding: 12px; font-size: 1.1em; }
+        
+        select, input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <h2>🖼️ 圖片壓縮與格式轉換工具</h2>
+    
+    <div class="container">
+        <input type="file" id="upload" accept="image/png, image/jpeg, image/webp">
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>縮放比例 (0.1 - 1.0)</label>
+                <input type="number" id="scale" step="0.1" min="0.1" max="1.0" value="0.8">
+            </div>
+            <div class="control-group">
+                <label>輸出格式</label>
+                <select id="formatSelect">
+                    <option value="image/jpeg">JPG (適合照片，檔案小)</option>
+                    <option value="image/png">PNG (保留透明，檔案較大)</option>
+                    <option value="image/webp">WebP (高壓縮，新格式)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>壓縮品質 (1-100) *僅限 JPG/WebP</label>
+                <input type="number" id="quality" min="1" max="100" value="80">
+            </div>
+            <div class="control-group" style="justify-content: flex-end;">
+                <button class="btn-refresh" id="refreshBtn">🔄 刷新預覽</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-grid" id="dataDisplay" style="display: none;">
+        <div class="info-card">
+            <h4>原始狀態</h4>
+            <div id="originalRes" class="info-val">--</div>
+            <div id="originalFileSize" style="color: #666;">--</div>
+        </div>
+        <div class="info-card">
+            <h4>壓縮後預估</h4>
+            <div id="newRes" class="info-val" style="color: #d9534f;">--</div>
+            <div id="newFileSize" style="color: #d9534f;">--</div>
+        </div>
+    </div>
+
+    <div class="preview-container" id="previewArea" style="display: none;">
+        <canvas id="canvas"></canvas>
+        <button class="btn-download" id="downloadBtn">💾 下載壓縮後的圖片</button>
+    </div>
+
+    <script>
+        const upload = document.getElementById('upload');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const scaleInput = document.getElementById('scale');
+        const qualityInput = document.getElementById('quality');
+        const formatSelect = document.getElementById('formatSelect');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        let currentImg = null;
+        let originalFile = null;
+
+        upload.addEventListener('change', function(e) {
+            originalFile = e.target.files[0];
+            if (!originalFile) return;
+
+            document.getElementById('originalFileSize').innerText = (originalFile.size / (1024 * 1024)).toFixed(2) + " MB";
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                currentImg = new Image();
+                currentImg.src = event.target.result;
+                currentImg.onload = processImage;
+            };
+            reader.readAsDataURL(originalFile);
+        });
+
+        refreshBtn.addEventListener('click', processImage);
+
+        function processImage() {
+            if (!currentImg) return;
+
+            const scale = parseFloat(scaleInput.value) || 1;
+            const quality = parseInt(qualityInput.value) / 100;
+            const format = formatSelect.value;
+
+            canvas.width = Math.round(currentImg.width * scale);
+            canvas.height = Math.round(currentImg.height * scale);
+
+            // 處理透明背景：如果是轉 JPG，先鋪一層白底
+            if (format === 'image/jpeg') {
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+
+            ctx.drawImage(currentImg, 0, 0, canvas.width, canvas.height);
+
+            // 更新文字顯示
+            document.getElementById('originalRes').innerText = `${currentImg.width} * ${currentImg.height}`;
+            document.getElementById('newRes').innerText = `${canvas.width} * ${canvas.height}`;
+
+            // 計算檔案大小預估
+            canvas.toBlob((blob) => {
+                document.getElementById('newFileSize').innerText = (blob.size / (1024 * 1024)).toFixed(2) + " MB";
+            }, format, quality);
+
+            document.getElementById('dataDisplay').style.display = 'grid';
+            document.getElementById('previewArea').style.display = 'block';
+        }
+
+        downloadBtn.addEventListener('click', function() {
+            const format = formatSelect.value;
+            const quality = parseInt(qualityInput.value) / 100;
+            const ext = format.split('/')[1].replace('jpeg', 'jpg');
+            
+            const dataUrl = canvas.toDataURL(format, quality);
+            const link = document.createElement('a');
+            link.download = `output_${canvas.width}x${canvas.height}.${ext}`;
+            link.href = dataUrl;
+            link.click();
+        });
+    </script>
+</body>
+</html>

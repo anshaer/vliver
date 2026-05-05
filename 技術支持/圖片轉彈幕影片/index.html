@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="iron" class="notranslate">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🎬 Pro Danmaku Video Maker</title>
+    <script src="coi-serviceworker.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="config-group">
+        <select id="themeSelect">
+            <option value="iron" selected>⚙️ 鋼鐵銅灰</option>
+            <option value="latte">☕ 咖啡拿鐵</option>
+            <option value="neon">🌆 夜間霓虹</option>
+            <option value="strawberry">🍓 草莓牛奶</option>
+            <option value="mint">🍫 薄荷巧克力</option>
+            <option value="ocean">🌊 藍白海洋</option>
+            <option value="sunset">🌇 夕陽餘暉</option>
+            <option value="morning">☀️ 早晨白日</option>
+        </select>
+        <select id="langSelect">
+            <option value="zh-TW">繁體中文 (台灣)</option>
+            <option value="zh-HK">繁體中文 (香港)</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+        </select>
+    </div>
+</div>
+
+<div class="main-layout">
+    <div class="control-panel">
+        <h2 id="t-title">圖片轉 3s 彈幕影片</h2>
+        
+        <div class="input-group">
+            <label id="t-img">1. 選擇來源圖片</label>
+            <input type="file" id="uploader" accept="image/*">
+        </div>
+
+        <div class="input-group">
+            <label id="t-main">2. 固定主標題</label>
+            <input type="text" id="videoText" value="禁止盜用">
+            <div class="slider-box">
+                <div class="color-row">
+                    <input type="color" id="textColor" value="#ffffff">
+                    <span id="colorHex">#FFFFFF</span>
+                </div>
+                <div class="slider-row"><label id="t-size">大小</label><input type="range" id="fontSize" min="20" max="250" value="80"><span class="val-display" id="fontSizeVal">80</span></div>
+                <div class="slider-row"><label id="t-px">左右</label><input type="range" id="posX" min="0" max="100" value="50"><span class="val-display" id="posXVal">50%</span></div>
+                <div class="slider-row"><label id="t-py">上下</label><input type="range" id="posY" min="0" max="100" value="50"><span class="val-display" id="posYVal">50%</span></div>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label id="t-dan">3. 彈幕設定 (位置,秒數,顏色,內容)</label>
+            <textarea id="danmakuText" rows="4">5,0.5,#00f3ff,Cool Effect!
+10,1.0,#ff00ff,Professional
+15,1.5,#ffff00,Neon Yellow</textarea>
+            <div class="slider-box">
+                <div class="slider-row"><label id="t-speed">速度</label><input type="range" id="danmakuSpeed" min="200" max="800" value="400"><span class="val-display" id="danmakuSpeedVal">中</span></div>
+                <div class="slider-row"><label id="t-density">提前時間</label><input type="range" id="preStartOffset" min="0" max="5" step="0.1" value="0"><span class="val-display" id="preStartOffsetVal">0s</span></div>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label id="t-res">4. 解析度</label>
+            <select id="qualitySelect">
+                <option value="480">480p</option>
+                <option value="720" selected>720p</option>
+                <option value="1080">1080p</option>
+            </select>
+        </div>
+
+        <button id="convertBtn">GENERATE VIDEO</button>
+        <p id="statusDisplay">READY</p>
+    </div>
+
+    <div class="preview-panel">
+        <div class="preview-sticky">
+            <video id="videoPreview" controls playsinline></video>
+            <div id="actionBtns" class="action-buttons" style="display:none;">
+                <a id="downloadLink" class="download-link">⬇️ DOWNLOAD</a>
+                <button id="shareBtn" class="share-btn">📤 SHARE</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
