@@ -115,11 +115,24 @@ body {
     color: white;
 }
 
+/* === 推廣輪播區塊客製化樣式 === */
+.promo-section .carousel-btn {
+    color: var(--mint-dark);
+}
+.promo-section .carousel-btn:hover {
+    color: var(--mint-medium);
+}
+.promo-section .carousel-display {
+    background: transparent;
+    border-radius: 0;
+}
+
 /* === 2. 推廣 (多筆資料) === */
 .promo-list-container {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    width: 100%;
 }
 .promo-flex-box {
     display: flex;
@@ -128,6 +141,8 @@ body {
     padding: 20px;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    box-sizing: border-box;
 }
 .promo-media {
     flex: 0 0 160px;
