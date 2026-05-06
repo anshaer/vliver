@@ -2,7 +2,5 @@
     <h1 style="color: #3E2723; font-size: 6rem; margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);">
         <span style="color: #8BC34A;">Hello</span>, <span style="color: #689F38;">World</span>!
     </h1>
-    <p style="color: #3E2723; font-size: 1.8rem; margin-top: 20px; font-weight: 500; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-        薄荷巧克力配色風格
-    </p>
+   
 </div>
