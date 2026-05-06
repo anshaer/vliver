@@ -25,6 +25,30 @@ document.addEventListener("DOMContentLoaded", () => {
                     // 初始化只顯示第一張，隱藏其他張
                     promoItem.style.display = index === 0 ? 'flex' : 'none';
                     
+                    // 動態檢查並生成存在的連結
+                    let linksHtml = '';
+                    if (item.ytUrl) {
+                        linksHtml += `
+                            <a href="${item.ytUrl}" class="promo-link-item" target="_blank">
+                                <i class="fab fa-youtube"></i> ${item.channel1Name || 'YouTube'}
+                            </a>
+                        `;
+                    }
+                    if (item.twitchUrl) {
+                        linksHtml += `
+                            <a href="${item.twitchUrl}" class="promo-link-item" target="_blank">
+                                <i class="fab fa-twitch"></i> ${item.channel3Name || '圖奇'}
+                            </a>
+                        `;
+                    }
+                    if (item.xUrl) {
+                        linksHtml += `
+                            <a href="${item.xUrl}" class="promo-link-item" target="_blank">
+                                <i class="fa-brands fa-twitter"></i> ${item.channel2Name || 'X'}
+                            </a>
+                        `;
+                    }
+                    
                     promoItem.innerHTML = `
                         <div class="promo-media">
                             <img src="${item.imageUrl}" alt="${item.title}">
@@ -33,12 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <div class="promo-title-box">${item.title}</div>
                             <div class="promo-desc-box">${item.description}</div>
                             <div class="promo-links">
-                                <a href="${item.ytUrl}" class="promo-link-item" target="_blank">
-                                    <i class="fab fa-youtube"></i> ${item.channel1Name}
-                                </a>
-                                <a href="${item.xUrl}" class="promo-link-item" target="_blank">
-                                    <i class="fa-brands fa-twitter"></i> ${item.channel2Name}
-                                </a>
+                                ${linksHtml}
                             </div>
                         </div>
                     `;
