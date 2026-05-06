@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>找不到網頁 - 404 Not Found</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* 柔和奶油黃背景 */
+            background-color: #fffbee; 
+            color: #4a3e3d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            text-align: center;
+            max-width: 580px;
+            padding: 40px;
+            background: #ffffff;
+            box-shadow: 0 12px 35px rgba(226, 138, 59, 0.08);
+            border-radius: 16px;
+            border: 1px solid #fae1b9;
+        }
+        h1 {
+            font-size: 100px;
+            margin: 0 0 10px 0;
+            /* 溫暖的焦糖橘黃色 */
+            color: #d97706; 
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: 2px;
+        }
+        h2 {
+            font-size: 24px;
+            margin: 0 0 15px 0;
+            color: #5c4a42;
+        }
+        p {
+            color: #7c6c63;
+            font-size: 15px;
+            margin: 0 0 25px 0;
+            line-height: 1.6;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 28px;
+            /* 奶油黃色按鈕 */
+            background-color: #f59e0b; 
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.25);
+            margin-bottom: 20px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background-color: #d97706;
+            transform: translateY(-2px);
+        }
+        
+        /* 遊戲區塊樣式 */
+        .game-box {
+            background-color: #fff9e6;
+            border: 2px dashed #f5cd79;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+        .game-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #5c4a42;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        
+        /* 遊戲面板（九宮格） */
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            max-width: 320px;
+            margin: 0 auto 15px auto;
+        }
+        .cell {
+            background-color: #ffeaa7;
+            height: 65px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            transition: all 0.1s ease;
+            box-shadow: 0 2px 5px rgba(226, 138, 59, 0.15);
+            border: 1px solid #fce38a;
+        }
+        .cell:hover {
+            background-color: #fdcb6e;
+            transform: translateY(-2px);
+        }
+        .cell.active-bug {
+            background-color: #ffaa3b;
+        }
+        
+        /* 計分與控制面板 */
+        .game-control-panel {
+            font-size: 14px;
+            color: #6e5c54;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-around;
+            background: #ffffff;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: inset 0 0 5px rgba(226, 138, 59, 0.05);
+            border: 1px solid #fae1b9;
+        }
+        .game-btn {
+            padding: 10px 24px;
+            background-color: #f59e0b;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 2px 5px rgba(245, 158, 11, 0.2);
+        }
+        .game-btn:hover {
+            background-color: #d97706;
+            transform: translateY(-1px);
+        }
+        .game-btn:disabled {
+            background-color: #d1c5a9;
+            color: #8c7f70;
+            cursor: not-allowed;
+            opacity: 0.8;
+            box-shadow: none;
+        }
+
+        .footer-text {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #a69688;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>404</h1>
+        <h2>Oops！找不到這個頁面</h2>
+        <p>您所要求的網頁可能已被移除或更名。既然這隻「蟲」讓你來到了這裡，不如先幫忙把其他蟲子抓出來吧！</p>
+        
+        <a href="/" class="btn">返回首頁</a>
+
+        <div class="game-box">
+            <div class="game-title">🐛 抓出網頁臭蟲</div>
+            
+            <div class="game-control-panel">
+                <div>時間：<span id="timer" style="font-weight: bold; color: #d97706;">20</span> 秒</div>
+                <div>得分：<span id="score" style="font-weight: bold; color: #f59e0b;">0</span> 隻</div>
+            </div>
+
+            <div class="game-grid">
+                <div class="cell" onclick="hitBug(this)"></div>
+                <div class="cell" onclick="hitBug(this)"></div>
+                <div class="cell" onclick="hitBug(this)"></div>
+                <div class="cell" onclick="hitBug(this)">9</div> <div class="cell" onclick="hitBug(this)"></div>
+                <div class="cell" onclick="hitBug(this)"></div>
+                <div class="cell" onclick="hitBug(this)"></div>
+                <div class="cell" onclick="hitBug(this)"></div>
+                <div class="cell" onclick="hitBug(this)"></div>
+            </div>
+
+            <button id="start-btn" class="game-btn" onclick="startGame()">開始遊戲</button>
+        </div>
+
+        <div class="footer-text">© 網站名稱 保留所有權利</div>
+    </div>
+
+    <script>
+        // 初始化讓格子為空白
+        document.querySelectorAll('.cell').forEach(c => c.innerText = '');
+
+        let score = 0;
+        let timeLeft = 20;
+        let gameInterval;
+        let timerInterval;
+        let activeCell = null;
+        let isPlaying = false;
+
+        function startGame() {
+            if (isPlaying) return;
+            
+            score = 0;
+            timeLeft = 20;
+            isPlaying = true;
+            
+            document.getElementById('score').innerText = score;
+            document.getElementById('timer').innerText = timeLeft;
+            document.getElementById('start-btn').disabled = true;
+            
+            // 啟動移動臭蟲與計時器
+            moveBug();
+            gameInterval = setInterval(moveBug, 850); // 每 850ms 換一次位置
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').innerText = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function moveBug() {
+            // 清理上一隻臭蟲
+            if (activeCell) {
+                activeCell.innerText = '';
+                activeCell.classList.remove('active-bug');
+            }
+            
+            // 隨機選一個格子
+            const cells = document.querySelectorAll('.cell');
+            const randomIndex = Math.floor(Math.random() * cells.length);
+            activeCell = cells[randomIndex];
+            activeCell.innerText = '🐛';
+            activeCell.classList.add('active-bug');
+        }
+
+        function hitBug(cell) {
+            if (!isPlaying) return;
+            
+            if (cell === activeCell) {
+                score++;
+                document.getElementById('score').innerText = score;
+                cell.innerText = '💥'; // 抓到的特效
+                activeCell = null; // 點擊後立刻移除，防止重複點擊
+                
+                setTimeout(() => {
+                    if (cell.innerText === '💥') {
+                        cell.innerText = '';
+                        cell.classList.remove('active-bug');
+                    }
+                }, 200);
+            }
+        }
+
+        function endGame() {
+            isPlaying = false;
+            clearInterval(gameInterval);
+            clearInterval(timerInterval);
+            
+            if (activeCell) {
+                activeCell.innerText = '';
+                activeCell.classList.remove('active-bug');
+            }
+            
+            document.getElementById('start-btn').disabled = false;
+            document.getElementById('start-btn').innerText = '再來一局';
+            alert(`時間到！您總共抓到了 ${score} 隻網頁臭蟲！`);
+        }
+    </script>
+</body>
+</html>
