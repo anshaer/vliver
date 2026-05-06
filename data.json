@@ -2,49 +2,22 @@
     "title": "創作者專屬平台",
     "promo": [
         {
-            "title": "測試標題1",
-            "description": "測試敘述1",
+            "title": "測試標題",
+            "description": "測試敘述",
             "imageUrl": "1.png",
             "ytUrl": "https://youtube.com",
-            "xUrl": "https://x.com",
             "channel1Name": "YT 連結",
+            "twitchUrl": "https://twitch.tv",
+            "channel3Name": "圖奇連結",
+            "xUrl": "https://x.com",
             "channel2Name": "X 連結"
         },
         {
-            "title": "測試標題2",
-            "description": "測試敘述2",
+            "title": "單連結測試標題",
+            "description": "僅顯示圖奇的範例",
             "imageUrl": "2.png",
-            "ytUrl": "https://youtube.com",
-            "xUrl": "https://x.com",
-            "channel1Name": "YT 連結",
-            "channel2Name": "X 連結"
-        },
-                {
-            "title": "測試標題3",
-            "description": "測試敘述3",
-            "imageUrl": "2.png",
-            "ytUrl": "https://youtube.com",
-            "xUrl": "https://x.com",
-            "channel1Name": "YT 連結",
-            "channel2Name": "X 連結"
-        },
-                {
-            "title": "測試標題4",
-            "description": "測試敘述4",
-            "imageUrl": "2.png",
-            "ytUrl": "https://youtube.com",
-            "xUrl": "https://x.com",
-            "channel1Name": "YT 連結",
-            "channel2Name": "X 連結"
-        },
-        {
-            "title": "測試標題5",
-            "description": "測試敘述5",
-            "imageUrl": "3.png",
-            "ytUrl": "https://youtube.com",
-            "xUrl": "https://x.com",
-            "channel1Name": "YT 連結",
-            "channel2Name": "X 連結"
+            "twitchUrl": "https://twitch.tv",
+            "channel3Name": "圖奇連結"
         }
     ],
     "gallery": [
