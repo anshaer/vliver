@@ -15,6 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
             promoList.innerHTML = '';
             
             let currentPromoIndex = 0;
+            let promoTimer = null; // 宣告推廣區計時器
             
             if (data.promo && data.promo.length > 0) {
                 data.promo.forEach((item, index) => {
@@ -53,15 +54,30 @@ document.addEventListener("DOMContentLoaded", () => {
                         item.style.display = idx === currentPromoIndex ? 'flex' : 'none';
                     });
                 };
+
+                // 啟動推廣區的自動播放計時器
+                const startPromoTimer = () => {
+                    if (promoTimer) {
+                        clearInterval(promoTimer);
+                    }
+                    promoTimer = setInterval(() => {
+                        currentPromoIndex = (currentPromoIndex + 1) % data.promo.length;
+                        updatePromo();
+                    }, 5000); // 5 秒切換
+                };
+
+                startPromoTimer(); // 初始化啟動計時
                 
                 promoPrevBtn.addEventListener("click", () => {
                     currentPromoIndex = (currentPromoIndex - 1 + data.promo.length) % data.promo.length;
                     updatePromo();
+                    startPromoTimer(); // 重置計時器
                 });
 
                 promoNextBtn.addEventListener("click", () => {
                     currentPromoIndex = (currentPromoIndex + 1) % data.promo.length;
                     updatePromo();
+                    startPromoTimer(); // 重置計時器
                 });
             }
 
