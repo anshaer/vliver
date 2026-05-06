@@ -10,40 +10,68 @@ document.addEventListener("DOMContentLoaded", () => {
             // 1. 設定頁面標題
             document.getElementById("page-title").textContent = data.title;
 
-            // 2. 渲染多筆推廣內容
+            // 2. 渲染多筆推廣內容 (卡片輪播)
             const promoList = document.getElementById("promo-list");
             promoList.innerHTML = '';
             
-            data.promo.forEach(item => {
-                const promoItem = document.createElement("div");
-                promoItem.className = "promo-flex-box";
-                promoItem.innerHTML = `
-                    <div class="promo-media">
-                        <img src="${item.imageUrl}" alt="${item.title}">
-                    </div>
-                    <div class="promo-content">
-                        <div class="promo-title-box">${item.title}</div>
-                        <div class="promo-desc-box">${item.description}</div>
-                        <div class="promo-links">
-                            <a href="${item.ytUrl}" class="promo-link-item" target="_blank">
-                                <i class="fab fa-youtube"></i> ${item.channel1Name}
-                            </a>
-                            <a href="${item.xUrl}" class="promo-link-item" target="_blank">
-                                <i class="fa-solid fa-hashtag"></i> ${item.channel2Name}
-                            </a>
+            let currentPromoIndex = 0;
+            
+            if (data.promo && data.promo.length > 0) {
+                data.promo.forEach((item, index) => {
+                    const promoItem = document.createElement("div");
+                    promoItem.className = "promo-flex-box";
+                    
+                    // 初始化只顯示第一張，隱藏其他張
+                    promoItem.style.display = index === 0 ? 'flex' : 'none';
+                    
+                    promoItem.innerHTML = `
+                        <div class="promo-media">
+                            <img src="${item.imageUrl}" alt="${item.title}">
                         </div>
-                    </div>
-                `;
-                promoList.appendChild(promoItem);
-            });
+                        <div class="promo-content">
+                            <div class="promo-title-box">${item.title}</div>
+                            <div class="promo-desc-box">${item.description}</div>
+                            <div class="promo-links">
+                                <a href="${item.ytUrl}" class="promo-link-item" target="_blank">
+                                    <i class="fab fa-youtube"></i> ${item.channel1Name}
+                                </a>
+                                <a href="${item.xUrl}" class="promo-link-item" target="_blank">
+                                    <i class="fa-solid fa-hashtag"></i> ${item.channel2Name}
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                    promoList.appendChild(promoItem);
+                });
+                
+                const promoPrevBtn = document.getElementById("promo-prev-btn");
+                const promoNextBtn = document.getElementById("promo-next-btn");
+                
+                const updatePromo = () => {
+                    const promoItems = promoList.querySelectorAll('.promo-flex-box');
+                    promoItems.forEach((item, idx) => {
+                        item.style.display = idx === currentPromoIndex ? 'flex' : 'none';
+                    });
+                };
+                
+                promoPrevBtn.addEventListener("click", () => {
+                    currentPromoIndex = (currentPromoIndex - 1 + data.promo.length) % data.promo.length;
+                    updatePromo();
+                });
 
-            // 3. 圖片集輪播邏輯
+                promoNextBtn.addEventListener("click", () => {
+                    currentPromoIndex = (currentPromoIndex + 1) % data.promo.length;
+                    updatePromo();
+                });
+            }
+
+            // 3. 圖片集輪播邏輯 (每 5 秒自動切換下一張)
             let currentIndex = 0;
             const galleryImg = document.getElementById("gallery-img");
             const galleryCaption = document.getElementById("gallery-caption");
             const prevBtn = document.getElementById("prev-btn");
             const nextBtn = document.getElementById("next-btn");
-            let autoplayTimer = null;
+            let galleryTimer = null;
 
             const updateGallery = () => {
                 if (data.gallery && data.gallery.length > 0) {
@@ -54,31 +82,31 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             };
 
-            // 啟動自動播放
-            const startAutoplay = () => {
-                if (autoplayTimer) {
-                    clearInterval(autoplayTimer);
+            const startGalleryTimer = () => {
+                if (galleryTimer) {
+                    clearInterval(galleryTimer);
                 }
-                autoplayTimer = setInterval(() => {
+                // 設定 5 秒自動切換一次圖片 (5000 毫秒)
+                galleryTimer = setInterval(() => {
                     currentIndex = (currentIndex + 1) % data.gallery.length;
                     updateGallery();
-                }, 5000); // 5000 毫秒 = 5 秒
+                }, 5000);
             };
 
             if (data.gallery && data.gallery.length > 0) {
                 updateGallery();
-                startAutoplay(); // 初始化時啟動計時器
+                startGalleryTimer(); // 初始化啟動計時器
 
                 prevBtn.addEventListener("click", () => {
                     currentIndex = (currentIndex - 1 + data.gallery.length) % data.gallery.length;
                     updateGallery();
-                    startAutoplay(); // 重置計時器
+                    startGalleryTimer(); // 手動操作後重置計時器，避免與自動切換衝突
                 });
 
                 nextBtn.addEventListener("click", () => {
                     currentIndex = (currentIndex + 1) % data.gallery.length;
                     updateGallery();
-                    startAutoplay(); // 重置計時器
+                    startGalleryTimer(); // 手動操作後重置計時器
                 });
             }
 
@@ -95,12 +123,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // 5. 渲染社群 Icons
             const socialIcons = document.getElementById("social-icons");
-socialIcons.innerHTML = `
-  <a href="${data.social.x}" target="_blank" class="social-icon" title="X"><i class="fab fa-twitter"></i></a>
-  <a href="${data.social.yt}" target="_blank" class="social-icon" title="YouTube"><i class="fab fa-youtube"></i></a>
-  <a href="${data.social.twitch}" target="_blank" class="social-icon" title="Twitch"><i class="fab fa-twitch"></i></a>
-  <a href="mailto:${data.social.email}" class="social-icon" title="傳送 Email"><i class="fas fa-envelope"></i></a>
-`;
+            socialIcons.innerHTML = `
+                <a href="${data.social.x}" target="_blank" class="social-icon" title="X"><i class="fa-solid fa-hashtag"></i></a>
+                <a href="${data.social.yt}" target="_blank" class="social-icon" title="YouTube"><i class="fab fa-youtube"></i></a>
+                <a href="${data.social.twitch}" target="_blank" class="social-icon" title="Twitch"><i class="fab fa-twitch"></i></a>
+                <a href="mailto:${data.social.email}" class="social-icon" title="傳送 Email"><i class="fas fa-envelope"></i></a>
+            `;
         })
         .catch(error => {
             console.error("載入錯誤:", error);
