@@ -20,8 +20,8 @@
             "channel2Name": "X 連結"
         },
                 {
-            "title": "測試標題2",
-            "description": "測試敘述2",
+            "title": "測試標題3",
+            "description": "測試敘述3",
             "imageUrl": "2.png",
             "ytUrl": "https://youtube.com",
             "xUrl": "https://x.com",
@@ -29,8 +29,8 @@
             "channel2Name": "X 連結"
         },
                 {
-            "title": "測試標題2",
-            "description": "測試敘述2",
+            "title": "測試標題4",
+            "description": "測試敘述4",
             "imageUrl": "2.png",
             "ytUrl": "https://youtube.com",
             "xUrl": "https://x.com",
@@ -38,8 +38,8 @@
             "channel2Name": "X 連結"
         },
         {
-            "title": "測試標題3",
-            "description": "測試敘述3",
+            "title": "測試標題5",
+            "description": "測試敘述5",
             "imageUrl": "3.png",
             "ytUrl": "https://youtube.com",
             "xUrl": "https://x.com",
