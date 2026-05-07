@@ -1,25 +1,69 @@
 {
     "title": "ANSHAER",
     "promo": [
+
         {
-            "title": "測試標題",
-            "description": "測試敘述",
-            "imageUrl": "1.png",
-            "ytUrl": "https://youtube.com",
+            "title": "一顆糖 🍬 ",
+            "description": "糖宅家主",
+            "imageUrl": "images/6.PNG",
+            "ytUrl": "https://www.youtube.com/@SugarDom1031",
             "channel1Name": "YT 連結",
-            "twitchUrl": "https://twitch.tv",
+            "twitchUrl": "https://www.twitch.tv/sugardom1031",
             "channel3Name": "圖奇連結",
-            "xUrl": "https://x.com",
+            "xUrl": "https://x.com/SugarDom1031",
             "channel2Name": "X 連結"
         },
         {
-            "title": "單連結測試標題",
-            "description": "僅顯示圖奇的範例",
-            "imageUrl": "2.png",
-            "twitchUrl": "https://twitch.tv",
-            "channel3Name": "圖奇連結"
+            "title": "薄荷巧克力🌱🍫チョコミントvtuber✨",
+            "description": "一個宅在冷氣房間的人型巧克力，致力於推廣薄巧和喜歡的事物",
+            "imageUrl": "images/20.PNG",
+            "ytUrl": "https://www.youtube.com/@mintchococh",
+            "channel1Name": "YT 連結",
+            "twitchUrl": "https://www.twitch.tv/mintchocolate_0214",
+            "channel3Name": "圖奇連結",
+            "xUrl": "https://x.com/mintchoco_0214",
+            "channel2Name": "X 連結"
+        },
+        {
+            "title": "魔女ルンナ I 魔女Runna 🔮🌕 ",
+            "description": "星の魔女ルンナ Runna ",
+            "imageUrl": "images/1.PNG",
+            "ytUrl": "https://www.youtube.com/@rururunautau",
+            "channel1Name": "YT 連結",
+            "twitchUrl": "https://www.twitch.tv/rururunautau",
+            "channel3Name": "圖奇連結",
+            "xUrl": "https://x.com/rururunautau",
+            "channel2Name": "X 連結"
+        },
+
+        {
+            "title": "優塔 Jutta Ch.",
+            "description": "陸地上一邊唱歌一邊蒐集情報的小小情報員",
+            "imageUrl": "images/16.PNG",
+            "ytUrl": "https://www.youtube.com/@Jutta_VTuber",
+            "channel1Name": "YT 連結",
+            "xUrl": "https://x.com/Jutta_Aglaea",
+            "channel2Name": "X 連結"
+        },
+        {
+            "title": "有・柚実yuzzmi🌙",
+            "description": "來自北方部落的半妖少女",
+            "imageUrl": "images/18.PNG",
+            "ytUrl": "https://www.youtube.com/@yuzzmi0110",
+            "channel1Name": "YT 連結",,
+            "xUrl": "https://x.com/yuzzmi0110",
+            "channel2Name": "X 連結"
+        },
+        {
+            "title": "余夢披曼よむピーマン🫑🌶️ ",
+            "description": "音樂團體 怪盜?靈感 作曲 (酒駕車車壓爛教-教主)",
+            "imageUrl": "1.png",
+            "ytUrl": "https://www.youtube.com/channel/UCm-4FYyiP8SPncitKJ15Vag",
+            "channel1Name": "YT 連結",
+            "xUrl": "https://x.com/MrChinjyao",
+            "channel2Name": "X 連結"
         }
-    ],
+
 
     "partner": [
         {
