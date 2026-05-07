@@ -20,6 +20,27 @@
             "channel3Name": "圖奇連結"
         }
     ],
+
+    "partner": [
+        {
+            "title": "夥伴項目 01",
+            "description": "合作夥伴的介紹文字...",
+            "imageUrl": "p1.png",
+            "ytUrl": "https://...",
+            "xUrl": "https://...",
+            "channel1Name": "官方頻道",
+            "channel2Name": "推特"
+        },
+        {
+            "title": "夥伴項目 01",
+            "description": "合作夥伴的介紹文字...",
+            "imageUrl": "p1.png",
+            "ytUrl": "https://...",
+            "xUrl": "https://...",
+            "channel1Name": "官方頻道",
+            "channel2Name": "推特"
+        }
+    ],
     "gallery": [
         { "title": "RUNNA", "url": "images/1.PNG" },
         { "title": "RUNNA", "url": "images/2.PNG" },
