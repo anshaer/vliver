@@ -23,21 +23,46 @@
 
     "partner": [
         {
-            "title": "夥伴項目 01",
-            "description": "合作夥伴的介紹文字...",
-            "imageUrl": "p1.png",
-            "ytUrl": "https://...",
-            "xUrl": "https://...",
-            "channel1Name": "官方頻道",
-            "channel2Name": "推特"
+            "title": "菲波妮妮",
+            "description": "冷酷槍女目前Twitch實況中🤍",
+            "imageUrl": "菲波妮妮.png",
+            "ytUrl": "https://www.youtube.com/channel/UCbrkZd9ghABuU1SDHx_jQAg",
+            "channel1Name": "YT 連結",
+            "twitchUrl": "https://www.twitch.tv/fablenini",
+            "channel3Name": "圖奇連結",
+            "xUrl": "https://x.com/FableNiNi",
+            "channel2Name": "X 連結"
         },
-       {
-            "title": "單連結測試標題",
-            "description": "僅顯示圖奇的範例",
-            "imageUrl": "2.png",
-            "twitchUrl": "https://twitch.tv",
-            "channel3Name": "圖奇連結"
-        }
+                {
+            "title": "千松嶁雷",
+            "description": "綠蝸牛。",
+            "imageUrl": "千松嶁雷.png",
+            "twitchUrl": "https://www.twitch.tv/loulei820",
+            "channel3Name": "圖奇連結",
+            "xUrl": "https://x.com/loulei820",
+            "channel2Name": "X 連結"
+        },
+                {
+            "title": "闇崎夜弥Yomi",
+            "description": "CommiOpen｜繪師｜建模師｜雙人Vtuber｜よみ｜",
+            "imageUrl": "闇崎夜弥Yomi.jpg",
+            "ytUrl": "https://youtube.com/@yobuyomi?si=kWIU-paf05VjAr0u",
+            "channel1Name": "YT 連結",
+            "xUrl": "https://x.com/yamizaki_yomi",
+            "channel2Name": "X 連結"
+        },
+                {
+            "title": "MS.04",
+            "description": " 一名只想著偷懶不寫報告的特務，目標是領著薪水快樂地當薪水小偷",
+            "imageUrl": "04.jpg",
+            "ytUrl": "https://youtube.com/@ms.04-vtuber?si=SoRFajnPZmiKrsXY",
+            "channel1Name": "YT 連結",
+
+            "xUrl": "https://x.com/MS04Vtuber",
+            "channel2Name": "X 連結"
+        },
+        
+
     ],
     "gallery": [
         { "title": "RUNNA", "url": "images/1.PNG" },
