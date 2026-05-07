@@ -31,14 +31,12 @@
             "channel1Name": "官方頻道",
             "channel2Name": "推特"
         },
-        {
-            "title": "夥伴項目 01",
-            "description": "合作夥伴的介紹文字...",
-            "imageUrl": "p1.png",
-            "ytUrl": "https://...",
-            "xUrl": "https://...",
-            "channel1Name": "官方頻道",
-            "channel2Name": "推特"
+       {
+            "title": "單連結測試標題",
+            "description": "僅顯示圖奇的範例",
+            "imageUrl": "2.png",
+            "twitchUrl": "https://twitch.tv",
+            "channel3Name": "圖奇連結"
         }
     ],
     "gallery": [
