@@ -1,80 +1,120 @@
 document.addEventListener("DOMContentLoaded", () => {
     fetch('data.json')
-        .then(response => {
-            if (!response.ok) throw new Error('無法讀取 JSON 資料');
-            return response.json();
-        })
+        .then(res => res.json())
         .then(data => {
             document.getElementById("page-title").textContent = data.title;
 
-            // --- 輪播邏輯優化 (推廣 & 合作夥伴) ---
-            const initSectionCarousel = (containerId, prevBtnId, nextBtnId, items) => {
+            // --- 1. 初始化資料渲染 ---
+            
+            // 渲染推廣與夥伴 (初始顯示第一張)
+            const renderStaticBox = (containerId, items) => {
                 const container = document.getElementById(containerId);
-                const prevBtn = document.getElementById(prevBtnId);
-                const nextBtn = document.getElementById(nextBtnId);
-                if (!container || !items || items.length === 0) return;
+                if (!items || items.length === 0) return;
+                container.setAttribute('data-index', 0); // 儲存當前索引
+                updateBoxView(containerId, items, 0);
+            };
 
-                let currentIndex = 0;
-                let timer = null;
-
-                const render = () => {
-                    container.innerHTML = '';
-                    const item = items[currentIndex];
-                    const card = document.createElement("div");
-                    card.className = "promo-flex-box active"; // 使用 CSS 控制動畫或顯示
-                    card.innerHTML = `
-                        <div class="promo-media"><img src="${item.imageUrl}" alt="${item.title}"></div>
+            const updateBoxView = (containerId, items, idx) => {
+                const container = document.getElementById(containerId);
+                const item = items[idx];
+                container.innerHTML = `
+                    <div class="promo-flex-box">
+                        <div class="promo-media"><img src="${item.imageUrl}"></div>
                         <div class="promo-content">
                             <div class="promo-title-box">${item.title}</div>
                             <div class="promo-desc-box">${item.description}</div>
                             <div class="promo-links">
                                 ${item.ytUrl ? `<a href="${item.ytUrl}" class="promo-link-item" target="_blank"><i class="fab fa-youtube"></i> ${item.channel1Name || 'YT'}</a>` : ''}
-                                ${item.xUrl ? `<a href="${item.xUrl}" class="promo-link-item" target="_blank"><i class="fab fa-twitter"></i> ${item.channel2Name || 'X'}</a>` : ''}
                                 ${item.twitchUrl ? `<a href="${item.twitchUrl}" class="promo-link-item" target="_blank"><i class="fab fa-twitch"></i> ${item.channel3Name || '圖奇'}</a>` : ''}
+                                ${item.xUrl ? `<a href="${item.xUrl}" class="promo-link-item" target="_blank"><i class="fab fa-twitter"></i> ${item.channel2Name || 'X'}</a>` : ''}
                             </div>
                         </div>
-                    `;
-                    container.appendChild(card);
-                };
-
-                const startAuto = () => {
-                    if (timer) clearInterval(timer);
-                    timer = setInterval(() => {
-                        currentIndex = (currentIndex + 1) % items.length;
-                        render();
-                    }, 5000);
-                };
-
-                prevBtn.onclick = () => { currentIndex = (currentIndex - 1 + items.length) % items.length; render(); startAuto(); };
-                nextBtn.onclick = () => { currentIndex = (currentIndex + 1) % items.length; render(); startAuto(); };
-
-                render();
-                startAuto();
+                    </div>
+                `;
             };
 
-            initSectionCarousel("promo-list", "promo-prev-btn", "promo-next-btn", data.promo);
-            initSectionCarousel("partner-list", "partner-prev-btn", "partner-next-btn", data.partner);
+            renderStaticBox("promo-list", data.promo);
+            renderStaticBox("partner-list", data.partner);
 
-            // --- Gallery 輪播 ---
-            const galleryImg = document.getElementById("gallery-img");
-            const galleryCaption = document.getElementById("gallery-caption");
-            if (data.gallery && data.gallery.length > 0) {
-                let gIdx = 0;
-                const upG = () => {
-                    galleryImg.src = data.gallery[gIdx].url;
-                    galleryCaption.textContent = data.gallery[gIdx].title;
-                };
-                upG();
-                document.getElementById("prev-btn").onclick = () => { gIdx = (gIdx - 1 + data.gallery.length) % data.gallery.length; upG(); };
-                document.getElementById("next-btn").onclick = () => { gIdx = (gIdx + 1) % data.gallery.length; upG(); };
-            }
+            // Gallery 初始顯示
+            const gImg = document.getElementById("gallery-img");
+            const gCap = document.getElementById("gallery-caption");
+            let gIdx = 0;
+            const updateG = (idx) => {
+                gIdx = idx;
+                gImg.src = data.gallery[gIdx].url;
+                gCap.textContent = data.gallery[gIdx].title;
+            };
+            updateG(0);
 
-            // --- 其他區塊 ---
-            const supportGrid = document.getElementById("support-grid");
-            data.support.forEach(item => {
+            // --- 2. 核心計時邏輯 (每9秒一個大循環) ---
+            
+            let globalTimer = 0; 
+            setInterval(() => {
+                globalTimer = (globalTimer + 1) % 9;
+
+                if (globalTimer === 0) {
+                    // 0秒：圖片展示動 (Gallery)
+                    let nextIdx = (gIdx + 1) % data.gallery.length;
+                    updateG(nextIdx);
+                } 
+                else if (globalTimer === 3) {
+                    // 3秒：推廣動 (Promo)
+                    const container = document.getElementById("promo-list");
+                    let idx = (parseInt(container.getAttribute('data-index')) + 1) % data.promo.length;
+                    container.setAttribute('data-index', idx);
+                    updateBoxView("promo-list", data.promo, idx);
+                } 
+                else if (globalTimer === 6) {
+                    // 6秒：合作夥伴動 (Partner)
+                    const container = document.getElementById("partner-list");
+                    let idx = (parseInt(container.getAttribute('data-index')) + 1) % data.partner.length;
+                    container.setAttribute('data-index', idx);
+                    updateBoxView("partner-list", data.partner, idx);
+                }
+            }, 1000); // 每秒檢查一次狀態
+
+            // --- 3. 手動按鈕功能 (保留並重設計時) ---
+            
+            document.getElementById("next-btn").onclick = () => { updateG((gIdx + 1) % data.gallery.length); globalTimer = 0; };
+            document.getElementById("prev-btn").onclick = () => { updateG((gIdx - 1 + data.gallery.length) % data.gallery.length); globalTimer = 0; };
+
+            document.getElementById("promo-next-btn").onclick = () => {
+                const c = document.getElementById("promo-list");
+                let idx = (parseInt(c.getAttribute('data-index')) + 1) % data.promo.length;
+                c.setAttribute('data-index', idx);
+                updateBoxView("promo-list", data.promo, idx);
+                globalTimer = 3;
+            };
+            document.getElementById("promo-prev-btn").onclick = () => {
+                const c = document.getElementById("promo-list");
+                let idx = (parseInt(c.getAttribute('data-index')) - 1 + data.promo.length) % data.promo.length;
+                c.setAttribute('data-index', idx);
+                updateBoxView("promo-list", data.promo, idx);
+                globalTimer = 3;
+            };
+
+            document.getElementById("partner-next-btn").onclick = () => {
+                const c = document.getElementById("partner-list");
+                let idx = (parseInt(c.getAttribute('data-index')) + 1) % data.partner.length;
+                c.setAttribute('data-index', idx);
+                updateBoxView("partner-list", data.partner, idx);
+                globalTimer = 6;
+            };
+            document.getElementById("partner-prev-btn").onclick = () => {
+                const c = document.getElementById("partner-list");
+                let idx = (parseInt(c.getAttribute('data-index')) - 1 + data.partner.length) % data.partner.length;
+                c.setAttribute('data-index', idx);
+                updateBoxView("partner-list", data.partner, idx);
+                globalTimer = 6;
+            };
+
+            // --- 4. 其他靜態渲染 ---
+            const sGrid = document.getElementById("support-grid");
+            data.support.forEach(s => {
                 const a = document.createElement("a");
-                a.href = item.url; a.className = "support-link-item"; a.textContent = item.title;
-                supportGrid.appendChild(a);
+                a.className = "support-link-item"; a.href = s.url; a.textContent = s.title;
+                sGrid.appendChild(a);
             });
 
             document.getElementById("social-icons").innerHTML = `
