@@ -166,7 +166,8 @@
         { "title": "中文隨機人名", "url": "技術支持/中文隨機人名" },
         { "title": "GPS", "url": "技術支持/GPS" },
         { "title": "ASCII", "url": "技術支持/ASCII" },
-        { "title": "108音", "url": "技術支持/108音" }
+        { "title": "108音", "url": "技術支持/108音" },
+        { "title": "PNG負空間處理", "url": "技術支持/PNG負空間處理" }
     ],
     "social": {
         "x": "https://x.com/Anshaer_TW_TYC",
