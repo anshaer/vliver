@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>PNG 負空間反轉與下載工具</title>
+    <style>
+        :root {
+            --primary: #3d2b1f; /* 巧克力褐 */
+            --accent: #98ff98;  /* 薄荷綠 */
+            --bg: #f3fcf9;
+        }
+        body {
+            font-family: sans-serif;
+            background-color: var(--bg);
+            color: var(--primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .panel {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            text-align: center;
+            border: 2px solid var(--primary);
+            margin-bottom: 20px;
+        }
+        .controls-row {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        .btn {
+            background-color: var(--primary);
+            color: var(--accent);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            border: none;
+            transition: 0.2s;
+        }
+        .btn:hover { filter: brightness(1.2); }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        
+        #colorPicker {
+            width: 50px;
+            height: 40px;
+            border: 1px solid var(--primary);
+            cursor: pointer;
+        }
+
+        .canvas-container {
+            background-image: 
+                linear-gradient(45deg, #eee 25%, transparent 25%), 
+                linear-gradient(-45deg, #eee 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #eee 75%),
+                linear-gradient(-45deg, transparent 75%, #eee 75%);
+            background-size: 20px 20px;
+            border: 1px solid #ccc;
+            max-width: 90vw;
+            max-height: 70vh;
+            overflow: auto;
+        }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+    <div class="panel">
+        <h2 style="margin-top:0;">PNG 負空間工具</h2>
+        
+        <div class="controls-row">
+            <label for="upload" class="btn">1. 選擇圖片</label>
+            <input type="file" id="upload" accept="image/png" style="display:none;">
+            
+            <span>2. 填色：</span>
+            <input type="color" id="colorPicker" value="#3D2B1F">
+            
+            <button id="downloadBtn" class="btn" disabled>3. 下載 PNG</button>
+        </div>
+        <p id="info" style="font-size: 0.9em; margin-top: 15px; color: #666;">請先上傳含有透明層的 PNG 圖片</p>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <script>
+        const upload = document.getElementById('upload');
+        const colorPicker = document.getElementById('colorPicker');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const info = document.getElementById('info');
+
+        let originalImg = null;
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function processImage() {
+            if (!originalImg) return;
+
+            // 同步畫布大小
+            canvas.width = originalImg.width;
+            canvas.height = originalImg.height;
+
+            // 繪製原圖
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(originalImg, 0, 0);
+
+            // 取得像素
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            const targetColor = hexToRgb(colorPicker.value);
+
+            // 反轉 Alpha
+            for (let i = 0; i < data.length; i += 4) {
+                const alpha = data[i + 3];
+                data[i]     = targetColor.r; 
+                data[i + 1] = targetColor.g; 
+                data[i + 2] = targetColor.b; 
+                data[i + 3] = 255 - alpha; // 透明對調核心邏輯
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+            downloadBtn.disabled = false;
+            info.innerText = `解析度：${canvas.width} x ${canvas.height} (已完成反轉)`;
+        }
+
+        upload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    originalImg = img;
+                    processImage();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // 顏色改變時即時更新
+        colorPicker.addEventListener('input', processImage);
+
+        // 下載功能
+        downloadBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'negative_space_output.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+    </script>
+</body>
+</html>
