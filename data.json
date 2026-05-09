@@ -167,7 +167,9 @@
         { "title": "GPS", "url": "技術支持/GPS" },
         { "title": "ASCII", "url": "技術支持/ASCII" },
         { "title": "108音", "url": "技術支持/108音" },
-        { "title": "PNG負空間處理", "url": "技術支持/PNG負空間處理" }
+        { "title": "PNG負空間處理", "url": "技術支持/PNG負空間處理" },
+        { "title": "去毛刺(測試)", "url": "技術支持/去毛刺" },
+        { "title": "連接(測試)", "url": "技術支持/連接" }
     ],
     "social": {
         "x": "https://x.com/Anshaer_TW_TYC",
