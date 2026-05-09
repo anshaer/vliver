@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>PNG 強力邊緣侵蝕工具</title>
+    <style>
+        :root { --primary: #3d2b1f; --accent: #98ff98; --bg: #f3fcf9; }
+        body { font-family: sans-serif; background-color: var(--bg); color: var(--primary); display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .panel { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); text-align: center; border: 2px solid var(--primary); width: 100%; max-width: 600px; margin-bottom: 20px; }
+        .btn { background-color: var(--primary); color: var(--accent); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; display: inline-block; }
+        .canvas-container { background-image: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%); background-size: 20px 20px; border: 1px solid #ccc; max-width: 95vw; overflow: auto; margin-top: 10px; }
+        input[type="range"] { width: 80%; cursor: pointer; }
+        .info-text { font-size: 0.85em; color: #666; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="panel">
+    <h2 style="margin:0;">強力邊緣侵蝕工具</h2>
+    <div style="margin: 15px 0;">
+        <label for="upload" class="btn">選擇原始 PNG</label>
+        <input type="file" id="upload" accept="image/png" style="display:none;">
+        <button id="downloadBtn" class="btn" style="margin-left:10px;" disabled>下載結果</button>
+    </div>
+    
+    <div style="padding: 10px; border: 1px solid #eee; border-radius: 10px;">
+        <label>侵蝕強度 (向內收縮寬度): <span id="strengthVal">0</span></label><br>
+        <input type="range" id="strengthRange" min="0" max="10" step="1" value="0">
+        <div class="info-text">※ 數值越高，邊緣會越用力向內收縮。可以把連線狀的毛刺直接切掉，但也會讓主體變細。</div>
+    </div>
+</div>
+
+<div class="canvas-container">
+    <canvas id="mainCanvas"></canvas>
+</div>
+
+<script>
+    const upload = document.getElementById('upload');
+    const strengthRange = document.getElementById('strengthRange');
+    const strengthVal = document.getElementById('strengthVal');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    let originalImg = null;
+
+    // 強力侵蝕演算法 (Erosion)
+    function applyErosion(data, width, height, radius) {
+        if (radius === 0) return data;
+        const output = new Uint8ClampedArray(data);
+        
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const idx = (y * width + x) * 4;
+                
+                // 如果該像素本身是透明的，直接跳過
+                if (data[idx + 3] === 0) continue;
+
+                let allNeighborsSolid = true;
+                // 檢查周圍 radius 範圍內是否「全都是」有色像素
+                outer: for (let dy = -radius; dy <= radius; dy++) {
+                    for (let dx = -radius; dx <= radius; dx++) {
+                        // 如果有指定特定圖案（比如十字型），可以在這裡加入邏輯，這裡採用全矩形。
+                        // 我們只需要檢查邊緣即可優化速度，但這裡為了強力採用全掃描。
+                        
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        
+                        if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
+                            // 碰到圖片邊界視為碰到透明，要被侵蝕
+                            allNeighborsSolid = false;
+                            break outer;
+                        }
+
+                        // 如果周圍有一個像素是透明的
+                        if (data[(ny * width + nx) * 4 + 3] === 0) {
+                            allNeighborsSolid = false;
+                            break outer;
+                        }
+                    }
+                }
+
+                // 判定邏輯：只有當你（包括周圍所有鄰居）都是實心的時候，你才能保留。
+                if (!allNeighborsSolid) {
+                    output[idx + 3] = 0; // 抹除該像素
+                }
+            }
+        }
+        return output;
+    }
+
+    function process() {
+        if (!originalImg) return;
+        const radius = parseInt(strengthRange.value);
+        strengthVal.innerText = radius;
+
+        canvas.width = originalImg.width;
+        canvas.height = originalImg.height;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(originalImg, 0, 0);
+
+        // 如果強度是 0，只做復原
+        if (radius === 0) {
+            downloadBtn.disabled = false;
+            return;
+        }
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const erodedDataArray = applyErosion(imageData.data, canvas.width, canvas.height, radius);
+        
+        // 將處理後的 Alpha 資料覆蓋回去
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            imageData.data[i + 3] = erodedDataArray[i + 3];
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+        downloadBtn.disabled = false;
+    }
+
+    upload.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => { originalImg = img; process(); };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    strengthRange.addEventListener('change', process);
+
+    downloadBtn.addEventListener('click', () => {
+        const link = document.createElement('a');
+        link.download = 'eroded_image.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    });
+</script>
+
+</body>
+</html>

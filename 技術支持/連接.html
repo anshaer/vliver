@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>PNG 閉合過濾器 (填縫+平滑)</title>
+    <style>
+        :root { --primary: #3d2b1f; --accent: #98ff98; --bg: #f3fcf9; }
+        body { font-family: sans-serif; background-color: var(--bg); color: var(--primary); display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .panel { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); text-align: center; border: 2px solid var(--primary); width: 100%; max-width: 600px; margin-bottom: 20px; }
+        .btn { background-color: var(--primary); color: var(--accent); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; display: inline-block; }
+        .canvas-container { background-image: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%); background-size: 20px 20px; border: 1px solid #ccc; max-width: 95vw; overflow: auto; margin-top: 10px; }
+        input[type="range"] { width: 80%; cursor: pointer; }
+        .info-text { font-size: 0.85em; color: #666; margin-top: 10px; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+<div class="panel">
+    <h2 style="margin:0;">色塊接合與平滑工具</h2>
+    <div style="margin: 15px 0;">
+        <label for="upload" class="btn">選擇原始 PNG</label>
+        <input type="file" id="upload" accept="image/png" style="display:none;">
+        <button id="downloadBtn" class="btn" style="margin-left:10px;" disabled>下載結果</button>
+    </div>
+    
+    <div style="padding: 10px; border: 1px solid #eee; border-radius: 10px;">
+        <label>處理強度 (接合半徑): <span id="strengthVal">0</span></label><br>
+        <input type="range" id="strengthRange" min="0" max="8" step="1" value="0">
+        <div class="info-text">
+            1. 往右調會讓色塊邊緣「長肉」互相接合，填滿細縫。<br>
+            2. 隨後會自動收縮回原大小，達到去除毛刺的效果。
+        </div>
+    </div>
+</div>
+
+<div class="canvas-container">
+    <canvas id="mainCanvas"></canvas>
+</div>
+
+<script>
+    const upload = document.getElementById('upload');
+    const strengthRange = document.getElementById('strengthRange');
+    const strengthVal = document.getElementById('strengthVal');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    let originalImg = null;
+
+    // 形態學運算：膨脹 (Dilate)
+    function dilate(data, width, height, radius) {
+        const output = new Uint8ClampedArray(data);
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                let maxA = 0;
+                for (let dy = -radius; dy <= radius; dy++) {
+                    for (let dx = -radius; dx <= radius; dx++) {
+                        const nx = x + dx, ny = y + dy;
+                        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                            maxA = Math.max(maxA, data[(ny * width + nx) * 4 + 3]);
+                        }
+                    }
+                }
+                output[(y * width + x) * 4 + 3] = maxA;
+            }
+        }
+        return output;
+    }
+
+    // 形態學運算：侵蝕 (Erode)
+    function erode(data, width, height, radius) {
+        const output = new Uint8ClampedArray(data);
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                let minA = 255;
+                for (let dy = -radius; dy <= radius; dy++) {
+                    for (let dx = -radius; dx <= radius; dx++) {
+                        const nx = x + dx, ny = y + dy;
+                        if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
+                            minA = 0; break;
+                        }
+                        minA = Math.min(minA, data[(ny * width + nx) * 4 + 3]);
+                    }
+                }
+                output[(y * width + x) * 4 + 3] = minA;
+            }
+        }
+        return output;
+    }
+
+    function process() {
+        if (!originalImg) return;
+        const radius = parseInt(strengthRange.value);
+        strengthVal.innerText = radius;
+
+        canvas.width = originalImg.width;
+        canvas.height = originalImg.height;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(originalImg, 0, 0);
+
+        if (radius === 0) return;
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        // 核心邏輯：閉合運算 (Closing) = 膨脹後侵蝕
+        // 1. 先膨脹：把色塊間的空白填滿，把毛刺與主體合併
+        const dilatedData = dilate(imageData.data, canvas.width, canvas.height, radius);
+        
+        // 2. 再侵蝕：把整體大小縮回原本，這時突出的毛刺會被磨平
+        const closedData = erode(dilatedData, canvas.width, canvas.height, radius);
+        
+        // 套用結果
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            imageData.data[i + 3] = closedData[i * 4 + 3] === undefined ? closedData[i+3] : closedData[i+3];
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+        downloadBtn.disabled = false;
+    }
+
+    upload.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => { originalImg = img; process(); };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    strengthRange.addEventListener('change', process);
+    downloadBtn.addEventListener('click', () => {
+        const link = document.createElement('a');
+        link.download = 'refined_image.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    });
+</script>
+
+</body>
+</html>
