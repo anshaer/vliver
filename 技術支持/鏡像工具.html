@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PNG 透明圖片鏡像工具</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #eef2f3;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: var(--secondary-color);
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 900px;
+        }
+        h2 { margin-bottom: 20px; }
+        
+        /* 檔案上傳按鈕樣式 */
+        .upload-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.3s;
+            font-weight: bold;
+        }
+        .upload-btn:hover { background-color: #2980b9; }
+        input[type="file"] { display: none; }
+
+        /* 畫布容器：加上 PNG 透明棋盤格背景 */
+        #canvas-container {
+            margin: 25px auto;
+            max-width: 100%;
+            max-height: 500px;
+            overflow: auto;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            /* 棋盤格 CSS */
+            background-image: 
+                linear-gradient(45deg, #eee 25%, transparent 25%), 
+                linear-gradient(-45deg, #eee 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #eee 75%),
+                linear-gradient(-45deg, transparent 75%, #eee 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+        }
+
+        /* 按鈕群組 */
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #f0f0f0;
+            border-color: #bbb;
+        }
+        button.download {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            grid-column: 1 / -1;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button.download:hover { background-color: #219150; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>圖片鏡像翻轉工具 (支援 PNG 透明)</h2>
+    
+    <label class="upload-btn">
+        選擇圖片上傳
+        <input type="file" id="fileInput" accept="image/png, image/jpeg, image/webp">
+    </label>
+
+    <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="controls">
+        <button onclick="applyTransform('flip-h')">↔️ 水平翻轉</button>
+        <button onclick="applyTransform('flip-v')">↕️ 垂直翻轉</button>
+        <button onclick="applyTransform('mirror-h-left')">🌓 水平鏡像(左像右)</button>
+        <button onclick="applyTransform('mirror-h-right')">🌗 水平鏡像(右像左)</button>
+        <button onclick="applyTransform('mirror-v-top')">🔼 垂直鏡像(上像下)</button>
+        <button onclick="applyTransform('mirror-v-bottom')">🔽 垂直鏡像(下像上)</button>
+        <button class="download" onclick="downloadImage()">💾 下載 PNG 圖片</button>
+    </div>
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let originalImage = null;
+
+    // 處理圖片上傳
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const img = new Image();
+            img.onload = function() {
+                originalImage = img;
+                canvas.width = img.width;
+                canvas.height = img.height;
+                resetCanvas();
+                ctx.drawImage(img, 0, 0);
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // 清空畫布為完全透明
+    function resetCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // 變換邏輯
+    function applyTransform(type) {
+        if (!originalImage) {
+            alert('請先上傳圖片！');
+            return;
+        }
+
+        const w = canvas.width;
+        const h = canvas.height;
+        const halfW = w / 2;
+        const halfH = h / 2;
+
+        resetCanvas();
+
+        switch (type) {
+            case 'flip-h': // 全圖水平翻轉
+                ctx.save();
+                ctx.translate(w, 0);
+                ctx.scale(-1, 1);
+                ctx.drawImage(originalImage, 0, 0);
+                ctx.restore();
+                break;
+
+            case 'flip-v': // 全圖垂直翻轉
+                ctx.save();
+                ctx.translate(0, h);
+                ctx.scale(1, -1);
+                ctx.drawImage(originalImage, 0, 0);
+                ctx.restore();
+                break;
+
+            case 'mirror-h-left': // 取左半邊鏡像到右邊
+                ctx.drawImage(originalImage, 0, 0, halfW, h, 0, 0, halfW, h); // 畫左邊
+                ctx.save();
+                ctx.translate(w, 0);
+                ctx.scale(-1, 1);
+                ctx.drawImage(originalImage, 0, 0, halfW, h, 0, 0, halfW, h); // 鏡像左邊到右邊
+                ctx.restore();
+                break;
+
+            case 'mirror-h-right': // 取右半邊鏡像到左邊
+                ctx.drawImage(originalImage, halfW, 0, halfW, h, halfW, 0, halfW, h); // 畫右邊
+                ctx.save();
+                ctx.translate(w, 0);
+                ctx.scale(-1, 1);
+                ctx.drawImage(originalImage, halfW, 0, halfW, h, halfW, 0, halfW, h); // 鏡像右邊到左邊
+                ctx.restore();
+                break;
+
+            case 'mirror-v-top': // 取上半邊鏡像到下邊
+                ctx.drawImage(originalImage, 0, 0, w, halfH, 0, 0, w, halfH); // 畫上邊
+                ctx.save();
+                ctx.translate(0, h);
+                ctx.scale(1, -1);
+                ctx.drawImage(originalImage, 0, 0, w, halfH, 0, 0, w, halfH); // 鏡像上邊到下邊
+                ctx.restore();
+                break;
+
+            case 'mirror-v-bottom': // 取下半邊鏡像到上邊
+                ctx.drawImage(originalImage, 0, halfH, w, halfH, 0, halfH, w, halfH); // 畫下邊
+                ctx.save();
+                ctx.translate(0, h);
+                ctx.scale(1, -1);
+                ctx.drawImage(originalImage, 0, halfH, w, halfH, 0, halfH, w, halfH); // 鏡像下邊到上邊
+                ctx.restore();
+                break;
+        }
+    }
+
+    // 下載圖片 (保持透明 PNG)
+    function downloadImage() {
+        if (!originalImage) return;
+        const link = document.createElement('a');
+        link.download = 'mirrored_image_' + Date.now() + '.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }
+</script>
+
+</body>
+</html>
