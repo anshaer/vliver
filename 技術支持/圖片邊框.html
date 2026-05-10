@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>PNG 專業邊框工具 - 向內修復版</title>
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; }
+        body { font-family: sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .card { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 800px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .control-group { display: flex; flex-direction: column; gap: 5px; }
+        .canvas-area { margin-top: 20px; background-image: conic-gradient(#eee 90deg, #fff 90deg 180deg, #eee 180deg 270deg, #fff 270deg); background-size: 20px 20px; border: 2px solid #e2e8f0; min-height: 400px; display: flex; justify-content: center; align-items: center; overflow: auto; }
+        canvas { max-width: 100%; height: auto; }
+        button { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; }
+        label { font-size: 13px; color: #64748b; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>PNG 圖片邊框產生器</h2>
+    <div class="grid">
+        <div class="control-group">
+            <label>1. 上傳圖片</label>
+            <input type="file" id="upload" accept="image/png">
+        </div>
+        <div class="control-group">
+            <label>2. 邊框寬度 (px)</label>
+            <input type="number" id="strokeWidth" value="15" min="0">
+        </div>
+        <div class="control-group">
+            <label>3. 邊框顏色</label>
+            <input type="color" id="strokeColor" value="#ff0000">
+        </div>
+        <div class="control-group">
+            <label>4. 增加方向</label>
+            <select id="strokeMode">
+                <option value="outside">向外增加 (Outside)</option>
+                <option value="inside" selected>向內增加 (Inside)</option>
+                <option value="center">雙向增加 (Center)</option>
+            </select>
+        </div>
+    </div>
+    <div class="canvas-area">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+    <button id="downloadBtn" style="margin-top: 20px;">下載 PNG 圖片</button>
+</div>
+
+<script>
+    const upload = document.getElementById('upload');
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+    const strokeWidthInput = document.getElementById('strokeWidth');
+    const strokeColorInput = document.getElementById('strokeColor');
+    const strokeModeInput = document.getElementById('strokeMode');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    let img = null;
+
+    upload.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            img = new Image();
+            img.onload = processImage;
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    [strokeWidthInput, strokeColorInput, strokeModeInput].forEach(el => el.oninput = processImage);
+
+    function processImage() {
+        if (!img) return;
+
+        const thickness = parseInt(strokeWidthInput.value) || 0;
+        const color = strokeColorInput.value;
+        const mode = strokeModeInput.value;
+
+        // 計算畫布尺寸 (只有Outside模式需要擴張)
+        let padding = 0;
+        if (mode === 'outside') padding = thickness;
+        if (mode === 'center') padding = thickness / 2;
+
+        canvas.width = img.width + (padding * 2);
+        canvas.height = img.height + (padding * 2);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (mode === 'inside') {
+            // --- 向內增加 (Inside) 的絕對修復方案 ---
+            if (thickness <= 0) { ctx.drawImage(img, 0, 0); return; }
+
+            // 1. 在臨時 Canvas A 畫出「原圖以外」的形狀
+            const canvasA = document.createElement('canvas');
+            canvasA.width = canvas.width;
+            canvasA.height = canvas.height;
+            const ctxA = canvasA.getContext('2d');
+            
+            ctxA.fillStyle = 'black'; // 用任何純色
+            ctxA.fillRect(0, 0, canvasA.width, canvasA.height); // 先塗滿
+            ctxA.globalCompositeOperation = 'destination-out'; // 用原圖把中間挖空
+            ctxA.drawImage(img, 0, 0);
+
+            // 2. 在臨時 Canvas B 將 Canvas A 的內容加粗
+            // 這會產生一個「往內擴散」的實心區域
+            const canvasB = document.createElement('canvas');
+            canvasB.width = canvas.width;
+            canvasB.height = canvas.height;
+            const ctxB = canvasB.getContext('2d');
+            
+            drawSpread(ctxB, canvasA, thickness * 2, color, 0); 
+
+            // 3. 關鍵一步：用原圖來「裁切」Canvas B 的內容
+            // 讓它只剩下原圖範圍內的內容
+            ctxB.globalCompositeOperation = 'destination-in';
+            ctxB.drawImage(img, 0, 0);
+
+            // 4. 最後，把處理好的純邊框蓋回原圖上方
+            ctx.drawImage(img, 0, 0); // 先畫原圖內容
+            ctx.drawImage(canvasB, 0, 0); // 再蓋上純內邊框
+
+        } else if (mode === 'outside') {
+            // 向外增加
+            drawSpread(ctx, img, thickness * 2, color, padding);
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.drawImage(img, padding, padding);
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(img, padding, padding);
+
+        } else {
+            // 雙向增加 (Center)
+            drawSpread(ctx, img, thickness, color, padding);
+            ctx.drawImage(img, padding, padding);
+        }
+    }
+
+    // 核心：擴張繪製算法
+    function drawSpread(targetCtx, sourceImg, w, color, offset) {
+        if (w <= 0) return;
+        
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const tCtx = tempCanvas.getContext('2d');
+
+        tCtx.save();
+        tCtx.translate(offset, offset);
+        
+        for (let i = 0; i < 360; i += 11.25) {
+            const rad = i * Math.PI / 180;
+            const dx = Math.cos(rad) * (w / 2);
+            const dy = Math.sin(rad) * (w / 2);
+            tCtx.drawImage(sourceImg, dx, dy);
+        }
+        tCtx.restore();
+
+        tCtx.globalCompositeOperation = 'source-in';
+        tCtx.fillStyle = color;
+        tCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+        targetCtx.drawImage(tempCanvas, 0, 0);
+    }
+
+    downloadBtn.onclick = () => {
+        const link = document.createElement('a');
+        link.download = 'border_image.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    };
+</script>
+
+</body>
+</html>
