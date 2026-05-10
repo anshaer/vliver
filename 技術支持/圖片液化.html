@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>專業液化工具 - 歷史紀錄版</title>
+    <style>
+        :root { --bg: #121212; --panel: #1e1e1e; --accent: #0078d4; --success: #28a745; }
+        body { font-family: sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
+        
+        .controls { 
+            background: var(--panel); padding: 10px 15px; width: 100%; box-sizing: border-box;
+            display: flex; gap: 12px; align-items: center; justify-content: flex-start;
+            border-bottom: 1px solid #333; z-index: 100; flex-wrap: wrap; font-size: 13px;
+        }
+
+        .input-group { display: flex; flex-direction: column; gap: 4px; }
+        .input-group label { font-size: 10px; color: #888; text-transform: uppercase; }
+        
+        .expand-controls { display: flex; align-items: center; gap: 5px; background: #2a2a2a; padding: 8px; border-radius: 6px; }
+        .expand-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+        .expand-btns button { padding: 2px 8px; font-size: 10px; background: #444; }
+
+        .history-controls { display: flex; gap: 5px; margin: 0 10px; }
+        .history-controls button { background: #555; min-width: 60px; }
+        .history-controls button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .viewport { flex: 1; width: 100%; overflow: auto; display: block; background: #0a0a0a; position: relative; }
+        .zoom-layer { display: inline-block; transform-origin: 0 0; padding: 150px; }
+        .canvas-container { 
+            background-image: linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%);
+            background-size: 20px 20px; box-shadow: 0 0 50px rgba(0,0,0,0.8);
+        }
+        canvas { display: block; cursor: crosshair; }
+        
+        button { cursor: pointer; background: var(--accent); color: white; border: none; border-radius: 4px; font-weight: bold; transition: 0.2s; padding: 6px 12px; }
+        button:hover:not(:disabled) { background: #005a9e; }
+        .reset-btn { background: #b91c1c; }
+        .info-text { font-family: monospace; color: var(--accent); font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <div class="input-group">
+        <label>1. 檔案</label>
+        <input type="file" id="upload" accept="image/png, image/jpeg">
+    </div>
+
+    <div class="history-controls">
+        <button id="undoBtn" disabled>上一步</button>
+        <button id="redoBtn" disabled>下一步</button>
+    </div>
+
+    <div class="expand-controls">
+        <div class="input-group">
+            <label>2. 擴張像素</label>
+            <input type="range" id="expSize" min="10" max="50" value="20" style="width:70px">
+        </div>
+        <div class="expand-btns">
+            <div style="grid-column: 2"> <button onclick="handleExpand('top')">↑</button> </div>
+            <button onclick="handleExpand('left')">←</button>
+            <button onclick="handleExpand('bottom')">↓</button>
+            <button onclick="handleExpand('right')">→</button>
+        </div>
+    </div>
+
+    <div class="input-group">
+        <label>檢視縮放 (0.2x - 5x)</label>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <input type="range" id="zoom" min="0.2" max="5" step="0.1" value="1">
+            <span id="zoomLabel" style="min-width:35px;">1.0x</span>
+        </div>
+    </div>
+
+    <div class="input-group">
+        <label>筆刷大小</label>
+        <input type="range" id="brushSize" min="10" max="300" value="80">
+    </div>
+
+    <div style="display:flex; gap:8px; margin-left: 10px;">
+        <button id="reset" class="reset-btn">重置</button>
+        <button id="download" style="background: var(--success)">導出</button>
+    </div>
+    
+    <div id="sizeDisplay" class="info-text" style="margin-left:auto">0 x 0</div>
+</div>
+
+<div class="viewport">
+    <div id="zoomLayer" class="zoom-layer">
+        <div class="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const zoomLayer = document.getElementById('zoomLayer');
+    const zoomInput = document.getElementById('zoom');
+    const zoomLabel = document.getElementById('zoomLabel');
+    const sizeDisplay = document.getElementById('sizeDisplay');
+    const undoBtn = document.getElementById('undoBtn');
+    const redoBtn = document.getElementById('redoBtn');
+    
+    let isDrawing = false;
+    let lastX = 0, lastY = 0;
+
+    // 歷史紀錄堆疊
+    let undoStack = [];
+    let redoStack = [];
+    const MAX_HISTORY = 20;
+
+    function saveHistory() {
+        // 儲存目前畫布狀態快照
+        undoStack.push(canvas.toDataURL());
+        if (undoStack.length > MAX_HISTORY) undoStack.shift();
+        redoStack = []; // 每次新操作後清空 redo
+        updateButtons();
+    }
+
+    function updateButtons() {
+        undoBtn.disabled = undoStack.length === 0;
+        redoBtn.disabled = redoStack.length === 0;
+        sizeDisplay.innerText = `${canvas.width} x ${canvas.height}`;
+    }
+
+    function undo() {
+        if (undoStack.length === 0) return;
+        redoStack.push(canvas.toDataURL());
+        const lastState = undoStack.pop();
+        applyState(lastState);
+    }
+
+    function redo() {
+        if (redoStack.length === 0) return;
+        undoStack.push(canvas.toDataURL());
+        const nextState = redoStack.pop();
+        applyState(nextState);
+    }
+
+    function applyState(base64) {
+        const img = new Image();
+        img.onload = () => {
+            // 如果尺寸不同（例如因擴張造成的尺寸改變），需重新調整畫布
+            if (canvas.width !== img.width || canvas.height !== img.height) {
+                canvas.width = img.width;
+                canvas.height = img.height;
+            }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            updateButtons();
+        };
+        img.src = base64;
+    }
+
+    // 擴張畫布包裝
+    function handleExpand(dir) {
+        saveHistory(); // 擴張前存入歷史
+        expandCanvas(dir);
+    }
+
+    function expandCanvas(direction) {
+        const amount = parseInt(document.getElementById('expSize').value);
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
+
+        let newW = canvas.width, newH = canvas.height, ox = 0, oy = 0;
+        if (direction === 'top') { newH += amount; oy = amount; }
+        if (direction === 'bottom') { newH += amount; }
+        if (direction === 'left') { newW += amount; ox = amount; }
+        if (direction === 'right') { newW += amount; }
+
+        canvas.width = newW;
+        canvas.height = newH;
+        ctx.clearRect(0, 0, newW, newH);
+        ctx.drawImage(tempCanvas, ox, oy);
+        updateButtons();
+    }
+
+    // 上傳圖片
+    document.getElementById('upload').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                undoStack = []; redoStack = []; // 重設歷史
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                updateButtons();
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // 縮放控制
+    zoomInput.addEventListener('input', () => {
+        const val = parseFloat(zoomInput.value).toFixed(1);
+        zoomLayer.style.transform = `scale(${val})`;
+        zoomLabel.innerText = `${val}x`;
+    });
+
+    // 液化演算法
+    function liquify(tx, ty, mx, my) {
+        const brushSize = parseInt(document.getElementById('brushSize').value);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const sourceData = new Uint8ClampedArray(imageData.data);
+        const dx = mx - tx, dy = my - ty;
+
+        for (let y = Math.floor(my - brushSize); y < my + brushSize; y++) {
+            if (y < 0 || y >= canvas.height) continue;
+            for (let x = Math.floor(mx - brushSize); x < mx + brushSize; x++) {
+                if (x < 0 || x >= canvas.width) continue;
+                const dist = Math.sqrt((x - mx)**2 + (y - my)**2);
+                if (dist < brushSize) {
+                    const weight = (1 - dist / brushSize) * 0.5;
+                    const sx = x - dx * weight, sy = y - dy * weight;
+                    const ti = (y * canvas.width + x) * 4;
+                    const si = (Math.floor(sy) * canvas.width + Math.floor(sx)) * 4;
+                    for(let i=0; i<4; i++) imageData.data[ti+i] = sourceData[si+i];
+                }
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+    function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: (e.clientX - rect.left) * (canvas.width / rect.width),
+            y: (e.clientY - rect.top) * (canvas.height / rect.height)
+        };
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+        if (canvas.width === 0) return;
+        saveHistory(); // 動作前先存目前狀態
+        isDrawing = true;
+        const pos = getPos(e);
+        lastX = pos.x; lastY = pos.y;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDrawing) return;
+        const pos = getPos(e);
+        liquify(lastX, lastY, pos.x, pos.y);
+        lastX = pos.x; lastY = pos.y;
+    });
+
+    window.addEventListener('mouseup', () => isDrawing = false);
+
+    undoBtn.onclick = undo;
+    redoBtn.onclick = redo;
+    
+    document.getElementById('reset').onclick = () => {
+        if (undoStack.length > 0 || redoStack.length > 0) {
+            if(confirm("確定要重置所有修改嗎？")) {
+                location.reload();
+            }
+        }
+    };
+
+    document.getElementById('download').onclick = () => {
+        const link = document.createElement('a');
+        link.download = `edit_${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    };
+</script>
+
+</body>
+</html>
