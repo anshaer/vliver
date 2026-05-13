@@ -62,6 +62,17 @@
             "channel1Name": "YT 連結",
             "xUrl": "https://x.com/MrChinjyao",
             "channel2Name": "X 連結"
+        },       
+        {
+            "title": "洛可洛斯特Loco Lost🥞 ",
+            "description": "鍊金術師VTUBER",
+            "imageUrl": "images/25.png",
+            "ytUrl": "youtube.com/@Locolost65/featured?sub_confirmation=1",
+            "channel1Name": "YT 連結",
+            "twitchUrl": "https://www.twitch.tv/locolost65",
+            "channel3Name": "圖奇連結",
+            "xUrl": "https://x.com/LocoLost65",
+            "channel2Name": "X 連結"
         }
 
     ],
