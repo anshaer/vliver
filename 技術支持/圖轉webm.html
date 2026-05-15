@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>圖片轉WebM</title>
+    <style>
+        :root {
+            --mint: #4d202b;
+            --dark-mint: #4d202b;
+            --choc: #ff4a77;
+            --bg-dark: #61eddf;
+        }
+
+        body { 
+            background: var(--bg-dark); 
+            color: var(--mint); 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 20px; 
+            margin: 0;
+        }
+
+        .card { 
+            background: var(--choc); 
+            padding: 25px; 
+            border-radius: 16px; 
+            width: 100%; 
+            max-width: 650px; 
+            box-shadow: 0 12px 40px rgba(0,0,0,0.6); 
+        }
+
+        .header-box {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--dark-mint);
+            padding-bottom: 10px;
+        }
+
+        h2 { margin: 0; }
+
+        .help-btn {
+            position: absolute;
+            right: 0;
+            background: var(--dark-mint);
+            color: var(--choc);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            text-decoration: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .help-btn:hover { background: var(--mint); transform: scale(1.1); }
+
+        .section-title { font-size: 0.8rem; color: var(--dark-mint); margin: 15px 0 10px 0; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+
+        .field { display: flex; flex-direction: column; margin-bottom: 10px; }
+        
+        label { font-size: 0.75rem; margin-bottom: 4px; }
+
+        input, select { 
+            padding: 10px; 
+            border-radius: 8px; 
+            border: 1px solid var(--dark-mint); 
+            background: #fff; 
+            color: #333; 
+            font-size: 0.9rem;
+        }
+
+        .bg-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,0.05);
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        button { 
+            width: 100%; 
+            padding: 14px; 
+            background: var(--dark-mint); 
+            color: var(--choc); 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            font-size: 1rem;
+            cursor: pointer; 
+            transition: 0.3s;
+            margin-top: 15px;
+        }
+
+        button:hover { background: var(--mint); transform: translateY(-2px); }
+        button:disabled { background: #555; cursor: not-allowed; }
+
+        #status { margin-top: 15px; font-size: 0.85rem; color: #ffeb3b; text-align: center; }
+
+        .preview-container {
+            margin-top: 25px;
+            border: 3px solid var(--dark-mint);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            min-height: 200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--mint); 
+        }
+
+        .bg-transparent {
+            background-image: linear-gradient(45deg, #333 25%, transparent 25%), linear-gradient(-45deg, #333 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #333 75%), linear-gradient(-45deg, transparent 75%, #333 75%);
+            background-size: 20px 20px;
+        }
+
+        video { max-width: 100%; display: block; z-index: 2; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="header-box">
+        <h2>WebM 影片生成器 </h2>
+        <a href="https://www.youtube.com" target="_blank" class="help-btn">?</a>
+    </div>
+    
+    <div class="field">
+        <label>1. 選擇圖片</label>
+        <input type="file" id="imgIn" accept="image/*">
+    </div>
+
+    <div class="grid">
+        <div class="field">
+            <label>寬度 (px)</label>
+            <input type="number" id="targetW">
+        </div>
+        <div class="field">
+            <label>預覽背景(不影響影片)</label>
+            <div class="bg-controls">
+                <input type="checkbox" id="isTransparent"> <span style="font-size:0.7rem">透明</span>
+                <input type="color" id="bgColor" value="#A5FFD6">
+            </div>
+        </div>
+    </div>
+
+    <div class="section-title">時間軸控制 (秒)</div>
+    <div class="grid">
+        <div class="field"><label>前空白</label><input type="number" id="preSec" value="0.2" step="0.1"></div>
+        <div class="field"><label>顯示</label><input type="number" id="inSec" value="1.0" step="0.1"></div>
+        <div class="field"><label>維持</label><input type="number" id="holdSec" value="2.0" step="0.5"></div>
+        <div class="field"><label>消失</label><input type="number" id="outSec" value="1.0" step="0.1"></div>
+        <div class="field"><label>後空白</label><input type="number" id="postSec" value="0.2" step="0.1"></div>
+    </div>
+
+    <div class="field">
+        <label>效果類型</label>
+        <select id="effect">
+            <option value="fade">淡入淡出 (Fade)</option>
+            <option value="shards">碎片進出 (Shards)</option>
+            <option value="pixel">像素化 (Pixelation Fixed)</option>
+            <option value="wipe">掃描擦除 (Wipe)</option>
+            <option value="zoom">旋轉縮放 (Zoom & Spin)</option>
+        </select>
+    </div>
+
+    <button id="runBtn">生成並預覽 WebM</button>
+    <div id="status">準備就緒</div>
+</div>
+
+<div class="preview-container" id="previewBox">
+    <video id="vOut" controls autoplay loop></video>
+</div>
+
+<canvas id="c" style="display:none"></canvas>
+<canvas id="offCanvas" style="display:none"></canvas>
+
+<script>
+    const imgIn = document.getElementById('imgIn');
+    const runBtn = document.getElementById('runBtn');
+    const status = document.getElementById('status');
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d', { alpha: true });
+    const offCanvas = document.getElementById('offCanvas');
+    const offCtx = offCanvas.getContext('2d', { alpha: true });
+    
+    const vOut = document.getElementById('vOut');
+    const previewBox = document.getElementById('previewBox');
+    const isTransparent = document.getElementById('isTransparent');
+    const bgColor = document.getElementById('bgColor');
+
+    let sourceImg = null;
+
+    const updatePreviewBG = () => {
+        if(isTransparent.checked) {
+            previewBox.classList.add('bg-transparent');
+            previewBox.style.backgroundColor = 'transparent';
+        } else {
+            previewBox.classList.remove('bg-transparent');
+            previewBox.style.backgroundColor = bgColor.value;
+        }
+    };
+    isTransparent.onchange = updatePreviewBG;
+    bgColor.oninput = updatePreviewBG;
+    updatePreviewBG();
+
+    imgIn.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        sourceImg = new Image();
+        sourceImg.onload = () => {
+            status.innerText = `圖片已載入`;
+            document.getElementById('targetW').value = sourceImg.width;
+        };
+        sourceImg.src = URL.createObjectURL(file);
+    };
+
+    runBtn.onclick = async () => {
+        if (!sourceImg) return alert("請先上傳圖片");
+        runBtn.disabled = true;
+
+        const w = parseInt(document.getElementById('targetW').value) || sourceImg.width;
+        const scale = Math.min(1, w / sourceImg.width);
+        canvas.width = sourceImg.width * scale;
+        canvas.height = sourceImg.height * scale;
+
+        const fps = 30;
+        const t1 = Math.round(fps * parseFloat(document.getElementById('preSec').value));
+        const t2 = Math.round(fps * parseFloat(document.getElementById('inSec').value));
+        const t3 = Math.round(fps * parseFloat(document.getElementById('holdSec').value));
+        const t4 = Math.round(fps * parseFloat(document.getElementById('outSec').value));
+        const t5 = Math.round(fps * parseFloat(document.getElementById('postSec').value));
+        const totalFrames = t1 + t2 + t3 + t4 + t5;
+        const effect = document.getElementById('effect').value;
+
+        const stream = canvas.captureStream(fps);
+        const recorder = new MediaRecorder(stream, {
+            mimeType: 'video/webm; codecs=vp9',
+            videoBitsPerSecond: 10000000
+        });
+
+        const chunks = [];
+        recorder.ondataavailable = e => chunks.push(e.data);
+        recorder.onstop = () => {
+            vOut.src = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
+            status.innerText = "生成成功！";
+            runBtn.disabled = false;
+        };
+
+        recorder.start();
+
+        for (let i = 0; i < totalFrames; i++) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let alpha = 0, factor = 0;
+
+            if (i >= t1 && i < t1 + t2) { // 進場
+                alpha = (i - t1) / t2;
+                factor = 1 - alpha;
+            } else if (i >= t1 + t2 && i < t1 + t2 + t3) { // 維持
+                alpha = 1; factor = 0;
+            } else if (i >= t1 + t2 + t3 && i < t1 + t2 + t3 + t4) { // 出場
+                let p = (i - (t1 + t2 + t3)) / t4;
+                alpha = 1 - p; factor = p;
+            }
+
+            if (alpha > 0) {
+                ctx.save();
+                if (effect === 'fade') {
+                    ctx.globalAlpha = alpha;
+                    ctx.drawImage(sourceImg, 0, 0, canvas.width, canvas.height);
+                } 
+                else if (effect === 'shards') {
+                    const grid = 10;
+                    const sw = canvas.width/grid, sh = canvas.height/grid;
+                    ctx.globalAlpha = alpha;
+                    for (let r=0; r<grid; r++) {
+                        for (let c=0; c<grid; c++) {
+                            ctx.save();
+                            const mx = (Math.sin(r+c+i*0.1)*150)*factor;
+                            const my = (Math.cos(r-c+i*0.1)*150)*factor;
+                            ctx.translate(c*sw+mx, r*sh+my);
+                            ctx.rotate(factor);
+                            ctx.drawImage(sourceImg, c*(sourceImg.width/grid), r*(sourceImg.height/grid), sourceImg.width/grid, sourceImg.height/grid, 0,0, sw, sh);
+                            ctx.restore();
+                        }
+                    }
+                }
+                else if (effect === 'pixel') {
+                    // 修正版像素化邏輯
+                    const pxScale = 1 - alpha + 0.01;
+                    const size = Math.max(1, Math.floor(60 * pxScale)); // 初始格子大小
+                    
+                    const tempW = Math.max(1, Math.floor(canvas.width / size));
+                    const tempH = Math.max(1, Math.floor(canvas.height / size));
+
+                    offCanvas.width = tempW;
+                    offCanvas.height = tempH;
+                    offCtx.clearRect(0,0,tempW,tempH);
+                    
+                    // 1. 先將原圖縮小到緩衝畫布上（填滿緩衝畫布）
+                    offCtx.drawImage(sourceImg, 0, 0, tempW, tempH);
+
+                    // 2. 將緩衝畫布拉伸回主畫布（填滿主畫布）
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.globalAlpha = alpha;
+                    ctx.drawImage(offCanvas, 0, 0, tempW, tempH, 0, 0, canvas.width, canvas.height);
+                }
+                else if (effect === 'wipe') {
+                    ctx.beginPath();
+                    ctx.rect(0, 0, canvas.width * alpha, canvas.height);
+                    ctx.clip();
+                    ctx.drawImage(sourceImg, 0, 0, canvas.width, canvas.height);
+                }
+                else if (effect === 'zoom') {
+                    ctx.globalAlpha = alpha;
+                    ctx.translate(canvas.width/2, canvas.height/2);
+                    ctx.scale(alpha, alpha);
+                    ctx.rotate((1-alpha) * Math.PI);
+                    ctx.drawImage(sourceImg, -canvas.width/2, -canvas.height/2, canvas.width, canvas.height);
+                }
+                ctx.restore();
+            }
+
+            if (i % 10 === 0) status.innerText = `進度: ${Math.round((i/totalFrames)*100)}%`;
+            await new Promise(r => setTimeout(r, 1000 / fps));
+        }
+
+        recorder.stop();
+        status.innerText = "完成封裝";
+    };
+</script>
+</body>
+</html>
