@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hello World + ASE Player</title>
+    <title>Hello World + ASE 旗艦播放器</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="ase-player.js"></script>
@@ -20,13 +20,27 @@
         }
         h1 { font-size: 2.5rem; border-bottom: 4px solid var(--mint-main); padding-bottom: 5px; margin-bottom: 25px; }
         
-        /* 播放器容器：已改為純透明，不顯示任何網格 */
+        /* 2. 播放器容器：完全透明，且排版留 300x300 空間 */
         .player-container {
-            background: transparent; 
+            width: 300px;
+            height: 300px;
+            background: transparent; /* 完全透明，融入網頁背景 */
             overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        canvas { display: block; background: transparent; }
-        .loading-text { font-style: italic; color: #777; }
+
+        /* 3. 讓 Canvas 畫布自動適應 300x300 容器進行等比例壓縮 */
+        canvas { 
+            display: block; 
+            background: transparent; 
+            width: 100%;           /* 寬度撐滿容器 */
+            height: 100%;          /* 高度撐滿容器 */
+            object-fit: contain;   /* 核心：不論專案原本尺寸多大，皆自動等比例縮放絕不變形 */
+        }
+        
+        .loading-text { font-style: italic; color: #777; padding: 20px; }
     </style>
 </head>
 <body>
@@ -34,14 +48,30 @@
     <h1>Hello World!</h1>
 
     <div class="player-container">
-        <div id="loading" class="loading-text" style="padding: 20px;">正在自動載入 1.ase 動態專案...</div>
+        <div id="loading" class="loading-text">正在自動載入 1.ase 動態專案...</div>
         <canvas id="ase-canvas" style="display:none;"></canvas>
     </div>
 
 <script>
+    // 當網頁 HTML 結構加載完畢後執行
     window.addEventListener('DOMContentLoaded', () => {
-        // 調用 API 啟動播放
+        
+        // 🚀 一行代碼調用 API 啟動播放！
+        // 核心會自動解算：①自訂錨點、②表情貼圖更換、③左右翻轉、④四大進階緩動曲線
         AsePlayer.loadAndPlay('1.ase', 'ase-canvas', 'loading');
+        
+    });
+
+    // 💡 監聽第 ⑤ 項功能「時間軸自訂事件觸發器」的網頁端接收範例
+    window.addEventListener('ase-event', (e) => {
+        const info = e.detail;
+        console.log(`[時間軸觸發] 收到來自圖層的事件: ${info.eventName} (影格節點: ${info.node})`);
+
+        // 應用情境：當動畫播到特定影格（例如您在製作器埋了 "play_footstep" 標記）
+        if (info.eventName === 'play_footstep') {
+            // 網頁端就可以在這裡同步執行其他 JavaScript 行為，例如播放音效：
+            // let audio = new Audio('sounds/step.mp3'); audio.play();
+        }
     });
 </script>
 </body>
