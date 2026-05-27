@@ -20,13 +20,10 @@
         }
         h1 { font-size: 2.5rem; border-bottom: 4px solid var(--mint-main); padding-bottom: 5px; margin-bottom: 25px; }
         
+        /* 播放器容器：已改為純透明，不顯示任何網格 */
         .player-container {
-            background-color: #eee;
-            background-image: linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc),
-                              linear-gradient(45deg, #ccc 25%, #fff 25%, #fff 75%, #ccc 75%, #ccc);
-            background-size: 20px 20px; background-position: 0 0, 10px 10px;
-            border: 1px solid var(--choco-dark); border-radius: 8px;
-            box-shadow: 0 6px 15px rgba(0,0,0,0.1); overflow: hidden;
+            background: transparent; 
+            overflow: hidden;
         }
         canvas { display: block; background: transparent; }
         .loading-text { font-style: italic; color: #777; }
@@ -42,13 +39,9 @@
     </div>
 
 <script>
-    // 當網頁 HTML 結構加載完畢後執行
     window.addEventListener('DOMContentLoaded', () => {
-        
-        // 🚀 像調用 API 一樣，一行程式碼直接啟動！
-        // 參數說明: AsePlayer.loadAndPlay('您的.ase路徑', 'Canvas的ID', '讀取中提示的ID')
+        // 調用 API 啟動播放
         AsePlayer.loadAndPlay('1.ase', 'ase-canvas', 'loading');
-        
     });
 </script>
 </body>
