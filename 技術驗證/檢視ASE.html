@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASE 動態專案快速檢視器</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://storage.googleapis.com/ase-player-cdn/ase-player.js"></script>
+    
+    <style>
+        :root {
+            --mint-main: #8ee3cf;
+            --mint-light: #eefcf9;
+            --choco-dark: #3d2620;
+            --choco-light: #d0c3bf;
+            --bg-color: #f4f9f6;
+        }
+
+        body {
+            margin: 0; padding: 30px 20px; background-color: var(--bg-color);
+            font-family: system-ui, -apple-system, sans-serif; color: var(--choco-dark);
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        .inspector-card {
+            background: #ffffff; padding: 30px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.06); width: 100%; max-width: 650px;
+            text-align: center; border: 1px solid var(--choco-light);
+        }
+
+        h1 { margin-top: 0; font-size: 1.8rem; border-bottom: 4px solid var(--mint-main); padding-bottom: 6px; display: inline-block; }
+        
+        .upload-zone {
+            border: 2px dashed var(--mint-main); background: var(--mint-light);
+            padding: 30px 20px; border-radius: 8px; margin: 20px 0; cursor: pointer; position: relative;
+            transition: background 0.2s;
+        }
+        .upload-zone:hover { background: #e2f9f4; }
+        .upload-zone input[type="file"] {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
+        }
+
+        .btn-view-bg {
+            background: var(--choco-dark); color: white; border: none; padding: 8px 16px;
+            border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; margin-bottom: 15px;
+        }
+        .btn-view-bg:hover { opacity: 0.9; }
+
+        /* 預覽展示視窗容器 */
+        .preview-window {
+            margin-top: 10px; min-height: 250px; position: relative; 
+            border: 1px solid var(--choco-light); border-radius: 6px; background: transparent; 
+            display: flex; align-items: center; justify-content: center; padding: 15px; overflow: hidden;
+        }
+
+        /* 棋盤格底色（供切換） */
+        .checkerboard {
+            background-image: linear-gradient(45deg, #e0e0e0 25%, transparent 25%, transparent 75%, #e0e0e0 75%, #e0e0e0),
+                              linear-gradient(45deg, #e0e0e0 25%, #ffffff 25%, #ffffff 75%, #e0e0e0 75%, #e0e0e0);
+            background-size: 16px 16px; background-position: 0 0, 8px 8px;
+        }
+
+        canvas { max-width: 100%; max-height: 450px; height: auto; display: none; }
+
+        /* 事件監聽日誌黑盒子 */
+        .monitor-panel {
+            margin-top: 20px; background: #1e1e1e; color: #00ffcc; font-family: 'Courier New', monospace;
+            padding: 12px; border-radius: 6px; text-align: left; font-size: 12px;
+            max-height: 150px; overflow-y: auto; width: 100%; box-sizing: border-box;
+            border: 1px solid #333; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+        }
+        .monitor-line { border-bottom: 1px dashed #333; padding: 3px 0; }
+    </style>
+</head>
+<body>
+
+    <div class="inspector-card">
+        <h1>ASE 專案組件檢視器</h1>
+        <p style="color: #666; font-size: 14px; margin: 10px 0 0 0;">隨時拖放您導出的 <code>.ase</code> 動態封包，快速於本地端驗證補間、表情切換與事件偵聽屬性。</p>
+        
+        <div class="upload-zone">
+            <strong style="color: var(--choco-dark); font-size: 16px;">📂 點擊選取 或 將 .ase 專案檔案拖曳至此處</strong>
+            <input type="file" id="ase-inspector-file" accept=".ase">
+        </div>
+
+        <button class="btn-view-bg" id="btn-toggle-grid">切換棋盤透明網格底色</button>
+
+        <div class="preview-window" id="preview-window-box">
+            <div id="inspector-status" style="color: #999; font-style: italic;">請先上傳動態組件檔案...</div>
+            <canvas id="inspector-canvas"></canvas>
+        </div>
+
+        <div style="text-align: left; margin-top: 20px; font-weight: bold; font-size: 13px; color: var(--choco-dark);">
+            ⚡ 時間軸事件標記 (Event Trigger) 即時日誌監控：
+        </div>
+        <div class="monitor-panel" id="monitor-log-box">等待專案載入中...</div>
+    </div>
+
+<script>
+    let activeAnimationTimer = null; // 紀錄目前正在運行的播放線計時器
+
+    const fileInput = document.getElementById('ase-inspector-file');
+    const statusText = document.getElementById('inspector-status');
+    const previewCanvas = document.getElementById('inspector-canvas');
+    const monitorLogBox = document.getElementById('monitor-log-box');
+    const toggleGridBtn = document.getElementById('btn-toggle-grid');
+    const windowBox = document.getElementById('preview-window-box');
+
+    // 棋盤格背景切換控制
+    toggleGridBtn.addEventListener('click', () => {
+        windowBox.classList.toggle('checkerboard');
+    });
+
+    // 監聽檔案上傳觸發
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // 💡 【安全防禦】：如果使用者連續上傳檔案，必須先清除前一個專案的 setInterval，否則多個動畫會在同一個畫布上高速重疊死鎖！
+        if (activeAnimationTimer) {
+            clearInterval(activeAnimationTimer);
+            activeAnimationTimer = null;
+        }
+
+        // 初始化狀態與面板
+        statusText.style.display = 'block';
+        statusText.style.color = '#999';
+        statusText.textContent = `偵測到專案「${file.name}」，正平行解壓核心組件...`;
+        previewCanvas.style.display = 'none';
+        monitorLogBox.innerHTML = '<div class="monitor-line" style="color:#aaa;">[系統] 已成功加載新專案，時間軸監聽中...</div>';
+
+        try {
+            // 💡 【核心技術】：將本地端獲取的二進位專案檔案，即時打包轉化為瀏覽器可跨來源讀取的 Local Blob URL
+            const temporaryBlobUrl = URL.createObjectURL(file);
+
+            // 調用部署於 Google Cloud 上的自建 API 動態播放
+            activeAnimationTimer = await AsePlayer.loadAndPlay(temporaryBlobUrl, 'inspector-canvas', 'inspector-status');
+            
+            console.log(`[檢視器提示] 新專案成功啟動，目前分配的 Interval 計時器 ID 為: ${activeAnimationTimer}`);
+        } catch (error) {
+            statusText.textContent = `專案解析失敗: ${error.message}`;
+            statusText.style.color = '#b71c1c';
+        }
+    });
+
+    // 💡 監聽來自 API 核心向瀏覽器全域廣播的事件通知，並印在黑盒子監控面板上
+    window.addEventListener('ase-event', (e) => {
+        const data = e.detail;
+        const currentTime = new Date().toLocaleTimeString();
+        
+        const logLine = document.createElement('div');
+        logLine.className = 'monitor-line';
+        logLine.innerHTML = `[${currentTime}] 節點 <span style="color:#fff;font-weight:bold;">${data.node}</span> 💥 觸發標記事件 &rarr; <span style="color:#ff007f;font-weight:bold;">"${data.eventName}"</span>`;
+        
+        monitorLogBox.appendChild(logLine);
+        // 讓黑盒子面板自動滾動至最底部最新一行
+        monitorLogBox.scrollTop = monitorLogBox.scrollHeight;
+    });
+</script>
+</body>
+</html>
