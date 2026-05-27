@@ -1,6 +1,5 @@
 /**
- * ASE 旗艦嵌入式動畫播放器 API (Plugin SDK)
- * 整合：自訂錨點、表情換貼圖、水平垂直翻轉、五大緩動曲線、時間軸監聽事件通知
+ * ASE 旗艦嵌入式動畫播放器 API (速度優化版)
  */
 const AsePlayer = {
     async loadAndPlay(fileUrl, canvasId, loadingId = null) {
@@ -10,36 +9,51 @@ const AsePlayer = {
         const loadingDiv = loadingId ? document.getElementById(loadingId) : null;
 
         try {
+            // 1. 遠端讀取 .ase 檔案
             const response = await fetch(fileUrl);
             if (!response.ok) throw new Error(`讀取失敗，Http狀態: ${response.status}`);
             const arrayBuffer = await response.arrayBuffer();
 
+            // 2. 解壓縮專案
             const zip = await JSZip.loadAsync(arrayBuffer);
             const configFile = zip.file("config.json");
             if (!configFile) throw new Error("專案包內遺失 config.json 描述檔");
             
             const config = JSON.parse(await configFile.async("text"));
-            
             canvas.width = config.width; canvas.height = config.height;
 
             let imageElements = {};
-            for (let imgData of config.images) {
+
+            // 💡 【核心優報：將 for 循環改為 Promise.all 平行排隊載入，速度提升數倍】
+            const imagePromises = config.images.map(async (imgData) => {
                 const pureName = imgData.filename.replace("images/", "");
                 const zipImg = zip.file("images/" + pureName);
                 if (zipImg) {
                     const blob = await zipImg.async("blob");
                     const url = URL.createObjectURL(blob);
-                    await new Promise((resolve) => {
-                        const img = new Image(); img.src = url;
-                        img.onload = () => { imageElements[imgData.filename] = img; resolve(); };
+                    return new Promise((resolve) => {
+                        const img = new Image();
+                        img.src = url;
+                        img.onload = () => { 
+                            imageElements[imgData.filename] = img; 
+                            resolve(); 
+                        };
+                        // 💡 【核心優化：防止 GitHub 掉封包導致網頁永久死鎖卡住】
+                        img.onerror = () => {
+                            console.warn(`[AsePlayer] 圖片解碼失敗或超時: ${pureName}，已自動跳過防止死鎖。`);
+                            resolve(); 
+                        };
                     });
                 }
-            }
+            });
+
+            // 等待所有圖層同時平行解碼完畢
+            await Promise.all(imagePromises);
 
             if (loadingDiv) loadingDiv.style.display = 'none';
             canvas.style.display = 'block';
 
-            // ④ 功能：升級具備 Easing 曲線的離線插值核心
+            // 補間插值核心
             function computeProps(layer, node) {
                 if (node < layer.startNode || node > layer.endNode) return null;
                 let points = [{ node: layer.startNode, props: layer.init }];
@@ -87,28 +101,21 @@ const AsePlayer = {
 
             const timerId = setInterval(() => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
                 for (let i = config.images.length - 1; i >= 0; i--) {
                     const layer = config.images[i];
                     const props = computeProps(layer, currentNode); if (!props) continue;
                     
-                    // ② 功能：多貼圖切換快取匹配
                     let activeTex = props.texture || layer.filename;
                     const img = imageElements[activeTex] || imageElements[layer.filename]; if (!img) continue;
-                    
-                    // ① 功能：自訂錨點比例
                     let px = layer.pivotX ?? 0.5, py = layer.pivotY ?? 0.5;
 
                     ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, props.op));
                     ctx.translate(props.x, props.y); ctx.rotate(props.rot * Math.PI / 180);
-                    
-                    // ③ 功能：水平垂直翻轉核心
                     let sX = props.flipX ? -1 : 1, sY = props.flipY ? -1 : 1;
                     if (sX !== 1 || sY !== 1) ctx.scale(sX, sY);
 
                     ctx.drawImage(img, -props.w * px, -props.h * py, props.w, props.h); ctx.restore();
 
-                    // ⑤ 功能：觸發時間軸自訂事件並向網頁外部拋出廣播通知
                     if (props.event && props.event.trim() !== "") {
                         window.dispatchEvent(new CustomEvent('ase-event', {
                             detail: { eventName: props.event, layerName: layer.filename, node: currentNode }
