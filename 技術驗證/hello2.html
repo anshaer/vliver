@@ -25,7 +25,7 @@
             padding-bottom: 5px;
             margin-bottom: 25px;
         }
-        /* 播放器透明底 chess 容器 */
+        /* 播放器透明底網格容器 */
         .player-container {
             background-color: #eee;
             background-image: linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc),
@@ -94,9 +94,9 @@
                 }
             }
 
-            // 顯示畫布，隱藏加載文字
+            // 【已修正】顯示畫布，隱藏加載文字
             loadingDiv.style.display = 'none';
-            canvas.style.style.display = 'block';
+            canvas.style.display = 'block';
 
             // 5. 補間動畫邏輯計算
             function computeProps(layer, node) {
