@@ -278,25 +278,25 @@
         <nav class="workflow-box">
             <div class="workflow-title">📌 ASE 全端工具鏈生產線標準工作流 (Ecosystem Pipeline)：</div>
             <div class="workflow-steps">
-                <div class="step-node">1. 素材智能壓縮減肥<br>(<a href="compressor.html">compressor.html</a>)</div>
+                <div class="step-node">1. 素材智能壓縮減肥<br>(<a href="ASE/data/compressor">compressor.html</a>)</div>
                 <div class="step-arrow">&rarr;</div>
-                <div class="step-node">2. 視覺化補間製作<br>(<a href="editor.html">editor.html</a>)</div>
+                <div class="step-node">2. 視覺化補間製作<br>(<a href="data/editor.html">editor.html</a>)</div>
                 <div class="step-arrow">&rarr;</div>
-                <div class="step-node">3. 本地黑盒子除錯<br>(<a href="檢視ASE.html">檢視ASE.html</a>)</div>
+                <div class="step-node">3. 本地黑盒子除錯<br>(<a href="data/Review-the-files-ASE">Review-the-files-ASE.html</a>)</div>
                 <div class="step-arrow">&rarr;</div>
-                <div class="step-node">4. 生產網頁極速應用<br>(<a href="hello2.html">hello2.html</a>)</div>
+                <div class="step-node">4. 生產網頁極速應用<br>(<a href="data/presentation-file">presentation-file.html</a>)</div>
             </div>
         </nav>
 
         <p>歡迎閱讀 **ASE (Animation Project)** 開源動畫工具鏈官方使用說明書。本生態系統完全基於 W3C 內建的原生 Web 標準技術開發，**不收取任何軟體授權費與平台訂閱費用**。本工具鏈不僅針對傳統桌機進行優化，底層更深度整合了**智慧型平板載具（如 iPad、Android Tablets）的觸控手勢（Touch Events）與觸控筆操作**，讓創作者無論身處何種裝置，皆能實現秒開載入、高性能渲染與深度網頁事件互動。本手冊將引導您完整走完四大模組的協同工作流。</p>
 
         <section>
-            <h2>一、 素材點對點智能優化篇 (<a href="compressor.html">compressor.html</a>)</h2>
+            <h2>一、 素材點對點智能優化篇 (<a href="ASE/data/compressor">compressor.html</a>)</h2>
             <p>若直接將繪圖軟體導出的數 MB 原始大圖或無損擷取畫面直接塞入動畫，將會導致最終專案檔極度肥大，引發網路載入超時。在排版前，創作者必須先透過優化器進行物理減肥。</p>
             
             <h3>🛠️ 操作步驟說明：</h3>
             <ol>
-                <li>開啟素材優化工具網頁 <a href="compressor.html">compressor.html</a>。</li>
+                <li>開啟素材優化工具網頁 <a href="ASE/data/compressor">compressor.html</a>。</li>
                 <li>檢視最上方的<strong>「動態組件黃金建議尺寸面板」</strong>。本系統針對網頁不同大小之組件給予了嚴格的解析度規格建議：
                     <ul>
                         <li><code>微型組件 / 虛擬裝飾頭像 Preset</code>：建議限制於 200 × 200 px 以內。</li>
@@ -320,12 +320,12 @@
         </section>
 
         <section>
-            <h2>二、 多圖層時間軸補間動畫製作篇 (<a href="editor.html">editor.html</a>)</h2>
-            <p>視覺化動畫編輯器（由 <a href="editor.html">editor.html</a> 骨架、style.css 樣式與 editor.js 核心邏輯共同組成）負責動態軌道的視覺編排，底層全面重構硬體操作觸發機制，完美適配平板觸控與桌機滑鼠。</p>
+            <h2>二、 多圖層時間軸補間動畫製作篇 (<a href="data/editor.html">editor.html</a>)</h2>
+            <p>視覺化動畫編輯器（由 <a href="data/editor.html">editor.html</a> 骨架、style.css 樣式與 editor.js 核心邏輯共同組成）負責動態軌道的視覺編排，底層全面重構硬體操作觸發機制，完美適配平板觸控與桌機滑鼠。</p>
             
             <h3>🛠️ 操作步驟說明：</h3>
             <ol>
-                <li>開啟可視化動態製作組件 <a href="editor.html">editor.html</a>。</li>
+                <li>開啟可視化動態製作組件 <a href="data/editor.html">editor.html</a>。</li>
                 <li>在頂部功能導覽列設定網頁畫布的實際「寬度」與「高度」，並設定專案的「總時間節點數（預設 50 影格）」。</li>
                 <li>在左側上傳區，批次選取剛剛在第一步優化好的 WebP 輕量化貼圖素材。圖片載入後會自動轉化為獨立的渲染圖層並呈現在畫布中央。</li>
                 <li><strong>圖層與自訂錨點配置：</strong> 您可以在左側圖層欄中點擊「▲」或「▼」調整前後遮擋渲染順序。選取特定圖層後，可在右側面板設定 <code>Pivot X / Y</code>（自訂中心點把手位置，0.5 為正中央），畫布舞台上會同步投射出紅色的錨點原點，未來圖層的旋轉與等比例縮放皆會以此紅色把手為中心矩陣進行計算。</li>
@@ -374,12 +374,12 @@
         </section>
 
         <section>
-            <h2>四、 專案快速檢視與除錯篇 (<a href="檢視ASE.html">檢視ASE.html</a>)</h2>
+            <h2>四、 專案快速檢視與除錯篇 (<a href="data/Review-the-files-ASE">Review-the-files-ASE.html</a>)</h2>
             <p>當您導出了多個 <code>.ase</code> 動態封包，或是想要快速除錯、驗證您在第三章埋設的事件標記有無拼字錯誤或時機不對時，可以使用專門的黑盒子檢視工具進行裸眼觀測。</p>
             
             <h3>🛠️ 操作步驟說明：</h3>
             <ol>
-                <li>開啟快速檢視工具網頁 <a href="檢視ASE.html">檢視ASE.html</a>。</li>
+                <li>開啟快速檢視工具網頁 <a href="data/Review-the-files-ASE">Review-the-files-ASE.html</a>。</li>
                 <li>直接將您剛導出的 <code>.ase</code> 專案包拖曳進網頁中央的虛線框中。</li>
                 <li>系統解壓引擎會即時將本地二進位流轉化為虛擬網址送入播放器中，動畫會立刻在畫布上啟動循環播放。</li>
                 <li><strong>棋盤透明背景切換：</strong> 點擊 **「切換棋盤透明網格底色」** 按鈕，畫布背景會在「純透明」與「灰白相間棋盤網格」之間切換，方便您在平板或桌機上仔細檢視多圖層WebP素材的邊緣去背有無毛邊。</li>
@@ -388,12 +388,12 @@
 
             <div class="figure-container">
                 <img src="03.png" alt="專案檢視除錯工具">
-                <div class="figure-lbl">圖 3. 檢視ASE.html 內建棋盤底色切換與事件監控終端機之快速檢視除錯工具</div>
+                <div class="figure-lbl">圖 3.Review-the-files-ASE.html 內建棋盤底色切換與事件監控終端機之快速檢視除錯工具</div>
             </div>
         </section>
 
         <section>
-            <h2>五、 生產環境雲端部署與一般網頁嵌入 API 實戰篇 (<a href="hello2.html">hello2.html</a>)</h2>
+            <h2>五、 生產環境雲端部署與一般網頁嵌入 API 實戰篇 (<a href="data/presentation-file">presentation-file.html</a>)</h2>
             
             <h3>5.1 台灣在地彰化機房高速 CDN 部署</h3>
             <p>為了達成極致的「秒開級」連線表現，本生態系之播放外連 API（<code>ase-player.js</code>）已成功託管於具有亞洲邊緣加速節點的雲端物件儲存空間——<strong>Google Cloud Storage (GCS) 台灣彰化本地資料中心（`asia-east1`）</strong>。研究團隊已透過 Cloud Shell 灌入公開 CORS 規則（成果如 <strong>圖 4</strong> 所示），徹底免除了傳統託管平台因海底電纜繞道引發的連線延遲。</p>
@@ -404,7 +404,7 @@
             </div>
 
             <h3>5.2 💡 一般網頁嵌入 API 詳細用法教學</h3>
-            <p class="no-indent">任何第三方的一般網站、個人網頁或幻想敘事主站，<strong>完全不需要下載任何本地 JS 檔案或配置伺服器，且終身免收使用費</strong>，即可直接外連引用雲端高速播放 API。其實作與運行樣貌可直接參考生產驗證網頁：<a href="hello2.html">hello2.html</a>。</p>
+            <p class="no-indent">任何第三方的一般網站、個人網頁或幻想敘事主站，<strong>完全不需要下載任何本地 JS 檔案或配置伺服器，且終身免收使用費</strong>，即可直接外連引用雲端高速播放 API。其實作與運行樣貌可直接參考生產驗證網頁：<a href="data/presentation-file">presentation-file.html</a>。</p>
             <p class="no-indent">要在您的一般網頁中嵌入動畫，請嚴格遵循以下三個步驟：</p>
             
             <h4>第 1 步：引入開源解壓依賴庫與雲端高速播放 API</h4>
@@ -503,7 +503,7 @@
                     <tr>
                         <td><strong>平均專案封包體積</strong></td>
                         <td>12.4 MB (未經壓縮重繪)</td>
-                        <td>840 KB (經 <a href="compressor.html">compressor.html</a> 瘦身)</td>
+                        <td>840 KB (經 <a href="ASE/data/compressor">compressor.html</a> 瘦身)</td>
                         <td>**大幅節省平板行動網路流量**</td>
                     </tr>
                     <tr>
@@ -529,7 +529,7 @@
 
             <div class="figure-container">
                 <img src="5.png" alt="生產環境成功運行">
-                <div class="figure-lbl">圖 5. 應用網頁 hello2.html 於平板載具上成功以一行代碼實現秒開與自訂事件監聽</div>
+                <div class="figure-lbl">圖 5. 應用網頁 presentation-file.html 於平板載具上成功以一行代碼實現秒開與自訂事件監聽</div>
             </div>
             
             <p class="no-indent" style="margin-top: 30px; font-weight: bold; text-align: center; color: var(--choco-dark);">—— 本官方操作手冊至此全盤完工，祝您的動態網頁專案開發順利！ ——</p>
