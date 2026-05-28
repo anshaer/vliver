@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASE 動態圖片素材輕量化壓縮工具</title>
+    <style>
+        :root {
+            --mint-main: #8ee3cf;
+            --mint-hover: #6bc7b2;
+            --mint-light: #eefcf9;
+            --choco-dark: #3d2620;
+            --choco-light: #d0c3bf;
+            --bg-color: #f4f9f6;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            margin: 0; padding: 30px 20px; background-color: var(--bg-color);
+            font-family: system-ui, -apple-system, sans-serif; color: var(--choco-dark);
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        .compressor-card {
+            background: #ffffff; padding: 30px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.06); width: 100%; max-width: 800px;
+            border: 1px solid var(--choco-light);
+        }
+
+        h1 { margin-top: 0; font-size: 1.8rem; border-bottom: 4px solid var(--mint-main); padding-bottom: 6px; display: inline-block; }
+        p { color: #666; font-size: 14px; margin: 10px 0 20px 0; }
+
+        /* 建議尺寸面板 */
+        .recommend-panel {
+            background: var(--mint-light); border: 1px dashed var(--mint-hover);
+            border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: left;
+        }
+        .recommend-title { font-weight: bold; font-size: 14px; margin-bottom: 10px; color: var(--choco-dark); display: flex; align-items: center; gap: 6px;}
+        .preset-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+        .preset-btn {
+            background: #ffffff; border: 1px solid var(--choco-light); padding: 6px 12px;
+            border-radius: 20px; font-size: 12px; cursor: pointer; font-weight: bold;
+            transition: all 0.2s; color: var(--choco-dark);
+        }
+        .preset-btn:hover { background: var(--mint-main); border-color: var(--mint-hover); }
+
+        /* 上傳區 */
+        .upload-zone {
+            border: 2px dashed var(--choco-light); background: #fafafa;
+            padding: 30px 20px; border-radius: 8px; margin-bottom: 20px; cursor: pointer;
+            position: relative; text-align: center; transition: border 0.2s;
+        }
+        .upload-zone:hover { border-color: var(--mint-main); background: var(--mint-light); }
+        .upload-zone input[type="file"] {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
+        }
+
+        /* 控制面板 */
+        .control-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px; background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;
+            border: 1px solid #eee; text-align: left;
+        }
+        .control-cell { display: flex; flex-direction: column; gap: 5px; }
+        .control-cell label { font-size: 12px; font-weight: bold; }
+        input[type="number"], select, input[type="range"] {
+            width: 100%; padding: 8px; border: 1px solid var(--choco-light); border-radius: 4px; font-size: 13px;
+        }
+
+        /* 雙欄對比預覽 */
+        .preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .preview-box {
+            border: 1px solid var(--choco-light); border-radius: 6px; padding: 10px; background: #eee;
+            background-image: linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc),
+                              linear-gradient(45deg, #ccc 25%, #fff 25%, #fff 75%, #ccc 75%, #ccc);
+            background-size: 16px 16px; background-position: 0 0, 8px 8px;
+            min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            overflow: hidden;
+        }
+        .preview-box img { max-width: 100%; max-height: 250px; object-fit: contain; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .info-lbl { background: rgba(61, 38, 32, 0.85); color: white; padding: 4px 8px; font-size: 11px; border-radius: 4px; margin-top: 8px; font-family: monospace; }
+
+        /* 導出按鈕 */
+        .btn-download {
+            background-color: var(--mint-main); color: var(--choco-dark); border: none;
+            padding: 12px 30px; border-radius: 6px; cursor: pointer; font-weight: bold;
+            font-size: 16px; width: 100%; display: none; text-decoration: none; text-align: center;
+            box-shadow: 0 4px 12px rgba(142, 227, 207, 0.3); transition: background 0.2s;
+        }
+        .btn-download:hover { background-color: var(--mint-hover); }
+    </style>
+</head>
+<body>
+
+    <div class="compressor-card">
+        <h1>素材輕量化優化工具</h1>
+        <p>在將圖片丟進 ASE 動態製作器前，先在此處進行智能縮放與轉檔壓縮，能讓最終導出的 <code>.ase</code> 專案檔瘦身 90% 以上，實現網頁秒開！</p>
+        
+        <div class="recommend-panel">
+            <div class="recommend-title">💡 網頁動態組件 - 建議輸出尺寸規格：</div>
+            <div class="preset-grid">
+                <button class="preset-btn" data-w="200" data-h="200">✨ 頭像 / 裝飾微型組件 (200x200)</button>
+                <button class="preset-btn" data-w="450" data-h="450">✨ 肢體四肢 / 左右手元件 (450x450)</button>
+                <button class="preset-btn" data-w="600" data-h="600">✨ 核心軀幹 / 主要表情外殼 (600x600)</button>
+                <button class="preset-btn" data-w="900" data-h="900">✨ 大型全身 / 前景大特效 (900x900)</button>
+                <button class="preset-btn" data-w="1200" data-h="1200">🔥 網頁背景 / 極限上限 (1200x1200)</button>
+            </div>
+            <div style="font-size: 11px; color: #666; margin-top: 10px;">* 提示：點擊上方預設按鈕，可自動將下方的「最大寬高上限」自動填入對應數值。</div>
+        </div>
+
+        <div class="upload-zone">
+            <strong style="font-size: 16px; color: var(--choco-dark);">📸 點擊選取 或 將原始大圖 (PNG/JPG/WebP) 拖曳至此處</strong>
+            <input type="file" id="input-file" accept=".png,.jpg,.jpeg,.webp">
+        </div>
+
+        <div class="control-grid">
+            <div class="control-cell">
+                <label>限制最大寬度 (px)</label>
+                <input type="number" id="max-w" value="600">
+            </div>
+            <div class="control-cell">
+                <label>限制最大高度 (px)</label>
+                <input type="number" id="max-h" value="600">
+            </div>
+            <div class="control-cell">
+                <label>導出格式 (推薦 WebP)</label>
+                <select id="export-format">
+                    <option value="image/webp">WebP (體積最小、支援透明度)</option>
+                    <option value="image/png">PNG (無損壓縮、體積較大)</option>
+                    <option value="image/jpeg">JPEG (點陣壓縮、不支援透明)</option>
+                </select>
+            </div>
+            <div class="control-cell">
+                <label>壓縮質量 Quality: <span id="quality-val">0.80</span></label>
+                <input type="range" id="compress-quality" min="0.1" max="1.0" step="0.05" value="0.80">
+            </div>
+        </div>
+
+        <div class="preview-grid">
+            <div>
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">❌ 原始超大圖原貌：</div>
+                <div class="preview-box">
+                    <div id="orig-empty" style="color:#aaa; font-size:13px;">等待上傳...</div>
+                    <img id="img-orig" style="display:none;">
+                    <div id="info-orig" class="info-lbl" style="display:none;">0 x 0 | 0 KB</div>
+                </div>
+            </div>
+            <div>
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">✅ 輕量化後預覽：</div>
+                <div class="preview-box">
+                    <div id="comp-empty" style="color:#aaa; font-size:13px;">等待優化運算...</div>
+                    <img id="img-comp" style="display:none;">
+                    <div id="info-comp" class="info-lbl" style="display:none;">0 x 0 | 0 KB (儲存率: 0%)</div>
+                </div>
+            </div>
+        </div>
+
+        <a href="#" class="btn-download" id="btn-download-file" download="optimized_material.webp">💾 下載優化後的輕量化圖片</a>
+    </div>
+
+<script>
+    let originalImage = null;
+    let originalFileSize = 0;
+    let originalFileName = "material.png";
+
+    const inputFile = document.getElementById('input-file');
+    const maxWInput = document.getElementById('max-w');
+    const maxHInput = document.getElementById('max-h');
+    const formatSelect = document.getElementById('export-format');
+    const qualitySlider = document.getElementById('compress-quality');
+    const qualityValLbl = document.getElementById('quality-val');
+
+    const imgOrig = document.getElementById('img-orig');
+    const imgComp = document.getElementById('img-comp');
+    const infoOrig = document.getElementById('info-orig');
+    const infoComp = document.getElementById('info-comp');
+    const origEmpty = document.getElementById('orig-empty');
+    const compEmpty = document.getElementById('comp-empty');
+    const btnDownload = document.getElementById('btn-download-file');
+
+    // 💡 建議尺寸按鈕快選連動
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            maxWInput.value = btn.getAttribute('data-w');
+            maxHInput.value = btn.getAttribute('data-h');
+            if (originalImage) { processImage(); }
+        });
+    });
+
+    // 監聽滑桿與參數改變
+    qualitySlider.addEventListener('input', (e) => {
+        qualityValLbl.textContent = parseFloat(e.target.value).toFixed(2);
+        if (originalImage) processImage();
+    });
+    [maxWInput, maxHInput, formatSelect].forEach(el => el.addEventListener('change', () => {
+        if (originalImage) processImage();
+    }));
+
+    // 格式改變時，自動修正下載副檔名
+    formatSelect.addEventListener('change', (e) => {
+        const fmt = e.target.value;
+        if(fmt === 'image/png') {
+            btnDownload.download = originalFileName.replace(/\.[^/.]+$/, "") + "_opt.png";
+            qualitySlider.disabled = true; // PNG 無損不支援品質滑桿
+        } else if(fmt === 'image/jpeg') {
+            btnDownload.download = originalFileName.replace(/\.[^/.]+$/, "") + "_opt.jpg";
+            qualitySlider.disabled = false;
+        } else {
+            btnDownload.download = originalFileName.replace(/\.[^/.]+$/, "") + "_opt.webp";
+            qualitySlider.disabled = false;
+        }
+    });
+
+    // 處理上傳檔案
+    inputFile.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        originalFileSize = file.size;
+        originalFileName = file.name;
+        
+        // 自動更新預設導出檔名
+        const fmt = formatSelect.value;
+        const ext = fmt === 'image/png' ? '_opt.png' : (fmt === 'image/jpeg' ? '_opt.jpg' : '_opt.webp');
+        btnDownload.download = file.name.replace(/\.[^/.]+$/, "") + ext;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            originalImage = new Image();
+            originalImage.src = event.target.result;
+            originalImage.onload = () => {
+                // 渲染原始圖資訊
+                origEmpty.style.display = 'none';
+                imgOrig.style.display = 'block';
+                imgOrig.src = originalImage.src;
+                infoOrig.style.display = 'inline-block';
+                infoOrig.textContent = `${originalImage.width} x ${originalImage.height} px | ${(originalFileSize / 1024).toFixed(1)} KB`;
+                
+                // 執行壓縮與尺寸縮放
+                processImage();
+            };
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // 核心畫布壓縮縮放引擎
+    function processImage() {
+        if (!originalImage) return;
+
+        let targetW = originalImage.width;
+        let targetH = originalImage.height;
+        const maxW = parseInt(maxWInput.value) || 9999;
+        const maxH = parseInt(maxHInput.value) || 9999;
+
+        // 計算等比例縮放
+        if (targetW > maxW) {
+            targetH = (maxW / targetW) * targetH;
+            targetW = maxW;
+        }
+        if (targetH > maxH) {
+            targetW = (maxH / targetH) * targetW;
+            targetH = maxH;
+        }
+
+        targetW = Math.round(targetW);
+        targetH = Math.round(targetH);
+
+        // 建立離線隱藏畫布進行重繪
+        const calcCanvas = document.createElement('canvas');
+        calcCanvas.width = targetW;
+        calcCanvas.height = targetH;
+        const calcCtx = calcCanvas.getContext('2d');
+
+        // 繪製縮放後的點陣圖
+        calcCtx.drawImage(originalImage, 0, 0, targetW, targetH);
+
+        const format = formatSelect.value;
+        const quality = parseFloat(qualitySlider.value);
+
+        // 轉換為二進位檔案數據 Blob 換算真實體積
+        calcCanvas.toBlob((blob) => {
+            if (!blob) return;
+            const compressedSize = blob.size;
+            const savings = ((1 - (compressedSize / originalFileSize)) * 100).toFixed(1);
+
+            const compressedUrl = URL.createObjectURL(blob);
+
+            // 更新壓縮預覽面板
+            compEmpty.style.display = 'none';
+            imgComp.style.display = 'block';
+            imgComp.src = compressedUrl;
+            infoComp.style.display = 'inline-block';
+            
+            // 標示儲存狀態
+            if (compressedSize > originalFileSize) {
+                infoComp.textContent = `${targetW} x ${targetH} px | ${(compressedSize / 1024).toFixed(1)} KB (原圖已足夠小)`;
+                infoComp.style.background = '#855c00';
+            } else {
+                infoComp.textContent = `${targetW} x ${targetH} px | ${(compressedSize / 1024).toFixed(1)} KB (瘦身了: ${savings}%)`;
+                infoComp.style.background = '#1b5e20';
+            }
+
+            // 活化下載連結
+            btnDownload.style.display = 'block';
+            btnDownload.href = compressedUrl;
+
+        }, format, quality);
+    }
+</script>
+</body>
+</html>

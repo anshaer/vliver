@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASE 動態圖片組件工具鏈 官方使用說明書</title>
+    <style>
+        :root {
+            --mint-main: #8ee3cf;
+            --mint-hover: #6bc7b2;
+            --mint-light: #eefcf9;
+            --choco-dark: #3d2620;
+            --choco-light: #d0c3bf;
+            --bg-color: #f4f9f6;
+            --text-dark: #2b1d19;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang TC", "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            line-height: 1.7;
+            margin: 0;
+            padding: 0;
+        }
+
+        .wrapper {
+            max-width: 1000px;
+            margin: 40px auto;
+            background: #ffffff;
+            border: 1px solid var(--choco-light);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(61, 38, 32, 0.05);
+            overflow: hidden;
+        }
+
+        /* 頂部橫幅 */
+        .manual-header {
+            background-color: var(--choco-dark);
+            color: #ffffff;
+            padding: 40px;
+            text-align: center;
+            border-bottom: 5px solid var(--mint-main);
+        }
+
+        .manual-header h1 {
+            margin: 0;
+            font-size: 28px;
+            letter-spacing: 1px;
+        }
+
+        .manual-header p {
+            margin: 10px 0 0 0;
+            font-size: 14px;
+            color: var(--choco-light);
+        }
+
+        /* 內容排版 */
+        .manual-body {
+            padding: 40px 50px;
+        }
+
+        .workflow-container {
+            background: var(--mint-light);
+            border: 1px dashed var(--mint-hover);
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 40px;
+        }
+
+        .workflow-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: var(--choco-dark);
+        }
+
+        .workflow-steps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .step-card {
+            background: #fff;
+            padding: 10px 15px;
+            border-radius: 4px;
+            border: 1px solid var(--choco-light);
+            flex: 1;
+            min-width: 180px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .step-arrow {
+            font-weight: bold;
+            color: var(--mint-hover);
+        }
+
+        h2 {
+            font-size: 20px;
+            color: #000;
+            border-bottom: 2px solid var(--choco-dark);
+            padding-bottom: 6px;
+            margin-top: 40px;
+            margin-bottom: 20px;
+        }
+
+        h3 {
+            font-size: 16px;
+            color: var(--choco-dark);
+            margin-top: 25px;
+            margin-bottom: 10px;
+            background-color: var(--mint-light);
+            padding: 4px 10px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        p {
+            font-size: 15px;
+            text-align: justify;
+            margin-bottom: 15px;
+        }
+
+        ol, ul {
+            padding-left: 25px;
+            margin-bottom: 20px;
+            font-size: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        a {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* 提示框 */
+        .tip-box {
+            background-color: #fff9db;
+            border-left: 4px solid #fcc419;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+            font-size: 14px;
+        }
+
+        .tip-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #f59f00;
+        }
+
+        /* 程式碼區 */
+        pre {
+            background: #272822;
+            color: #f8f8f2;
+            padding: 15px 20px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: 13px;
+            margin: 15px 0;
+        }
+
+        code {
+            font-family: "Consolas", "Courier New", monospace;
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 13px;
+            color: #b71c1c;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+            font-size: inherit;
+        }
+
+        /* 圖片佔位符 */
+        .figure-box {
+            text-align: center;
+            margin: 25px 0;
+            padding: 15px;
+            background: #fafafa;
+            border: 1px solid #eee;
+            border-radius: 6px;
+        }
+
+        .figure-box img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid var(--choco-light);
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .figure-caption {
+            font-size: 13px;
+            color: #666;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <div class="manual-header">
+        <h1>ASE 動態圖片組件工具鏈</h1>
+        <p>全端標準技術整合 — 跨平台觸控支援 • 零授權費開源生態系統官方操作手冊</p>
+    </div>
+
+    <div class="manual-body">
+        <div class="workflow-container">
+            <div class="workflow-title">📌 生態系生產線核心工作流 (Workflow)：</div>
+            <div class="workflow-steps">
+                <div class="step-card">1. 素材優化減肥<br>(<a href="compressor.html">compressor.html</a>)</div>
+                <div class="step-arrow">&rarr;</div>
+                <div class="step-card">2. 補間動畫製作<br>(<a href="editor.html">editor.html</a>)</div>
+                <div class="step-arrow">&rarr;</div>
+                <div class="step-card">3. 本地快速除錯<br>(<a href="檢視ASE.html">檢視ASE.html</a>)</div>
+                <div class="step-arrow">&rarr;</div>
+                <div class="step-card">4. 生產環境應用<br>(<a href="hello2.html">hello2.html</a>)</div>
+            </div>
+        </div>
+
+        <p>歡迎使用 **ASE (Animation Project)** 開源網頁動態組件系統。本系統集結了現行的原生 Web 標準技術（HTML5 Canvas, WebP, WebM），**完全不需要支付任何平台訂閱費或軟體授權費**。本手冊將引導您如何在桌機或**平板載具**上，快速完成從素材輕量化、視覺化補間動畫拉線、事件埋藏，到最終一般網頁嵌入的完整開發閉環。</p>
+
+        <section>
+            <h2>一、 素材輕量化減肥篇 (<a href="compressor.html">compressor.html</a>)</h2>
+            <p>若直接將未經壓縮的超高解析度繪圖原檔或螢幕截圖直接塞入動畫中，會造成最終導出的專案包過於肥大，導致使用者網頁載入卡頓。在開始製作起動態前，必須先使用優化工具進行物理輕量化。</p>
+            
+            <h3>操作步驟：</h3>
+            <ol>
+                <li>雙擊開啟 <a href="compressor.html">compressor.html</a> 網頁工具。</li>
+                <li>根據您要製作的動態組件性質，點擊最上方由研究團隊推導的<strong>「建議尺寸黃金面板」</strong>（例如：若為四肢元件點選 450x450，若為頭像點選 200x200）。系統會自動將最大寬高上限灌入參數欄中。</li>
+                <li>將您的原始大圖（PNG/JPG）拖曳或選取上傳至上傳區。</li>
+                <li>導出格式推薦保持預設的 <strong>WebP</strong> 格式，其具備極高的像素壓縮比且完美保留 8-bit 透明通道。</li>
+                <li>拉動質量滑桿（預設 0.80），右側會即時換算並顯示縮放後的點陣圖，以及成功瘦身的百分比（平均可精簡 90% 以上檔案大小）。</li>
+                <li>點擊下方藍色按鈕 <strong>「下載優化後的輕量化圖片」</strong>，留存作為動畫素材。</li>
+            </ol>
+
+            <div class="figure-box">
+                <img src="1.png" alt="素材優化工具介面預覽">
+                <div class="figure-caption">圖 1. compressor.html 素材智能壓縮與解析度限制重繪面板</div>
+            </div>
+        </section>
+
+        <section>
+            <h2>二、 多圖層補間動畫製作篇 (<a href="editor.html">editor.html</a>)</h2>
+            <p>本編輯器支援傳統滑鼠操作，同時全面支援**智慧型平板電腦（如 iPad、Android 平板）的觸控手勢與觸控筆**。您可以直接在平板上完成複雜的補間拉線與時間軸調校。</p>
+            
+            <h3>操作步驟：</h3>
+            <ol>
+                <li>開啟可視化動態製作組件 <a href="editor.html">editor.html</a>。</li>
+                <li>在頂部功能列設定您網頁舞台的「畫布寬度」、「高度」以及本專案的「總時間節點數（預設 50 影格）」。</li>
+                <li>在左側素材匯入區，選取剛剛在第一步中利用 WebP 壓縮好的所有輕量化素材。圖片載入後會自動化為獨立圖層堆疊至畫布中央。</li>
+                <li><strong>圖層與錨點排序：</strong> 您可以在左側圖層管理欄點擊「▲」或「▼」調整前後圖層遮擋關係。在右側面板中，可微調 <code>Pivot X / Y</code> 來改變圖層旋轉或縮放時的核心錨點位置（系統預設 0.5 為正中央，會以紅色原點把手在舞台呈現）。</li>
+                <li><strong>編輯影格：</strong> 拉動底部時間軸滑桿（或輸入精準數字）切換影格節點。在畫布上，您可以直接用**滑鼠拖曳（或在平板上用手指/觸控筆直接點擊拖放）**圖片進行位移、調整右下角手把進行等比例縮放、或是拉動上方手把進行矩陣旋轉。</li>
+                <li><strong>高階緩動曲線：</strong> 當您在非 0 影格改變圖片狀態時，系統會異步活化該格關鍵影格。您可在右側下拉選單為該區段配置 <code>Bounce (物理回彈)</code> 或 <code>EaseInOut (雙向漸變)</code> 等高階數學插值曲線，賦予組件極佳的打擊彈性。</li>
+                <li><strong>埋藏事件標記：</strong> 若想讓動畫在特定影格觸發網頁行為，可在「時間軸事件標記觸發器」欄位輸入自訂字串標記（例如：<code>play_vfx</code>）。</li>
+                <li>點擊底部「播放預覽」確認動態完全流暢。</li>
+                <li><strong>專案匯出：</strong> 確認無誤後，點擊頂部功能列的 **「匯出專案檔 (.ase)」** 下載二進位封包。
+                    <div class="tip-box">
+                        <div class="tip-title">💡 軟體工程安全防禦小知識：</div>
+                        本生態系導出的 <code>.ase</code> 專案檔本質上為高效標準 ZIP 容器。為防範使用者誤將日常生活中不相關的壓縮檔（如相片壓縮包）丟入系統引發程式碼崩潰，工具鏈在前端實施了副檔名沙盒過濾。請維持 <code>.ase</code> 命名，以維護多圖片組的完整性與系統健全度。
+                    </div>
+                </li>
+            </ol>
+
+            <div class="figure-box">
+                <img src="2.png" alt="多圖層時間軸編輯器介面預覽">
+                <div class="figure-caption">圖 2. editor.html 支援平板雙軌觸控之多圖層時間軸補間製作器</div>
+            </div>
+        </section>
+
+        <section>
+            <h2>三、 專案快速檢視與除錯篇 (<a href="檢視ASE.html">檢視ASE.html</a>)</h2>
+            <p>當您導出多個 <code>.ase</code> 專案，或是想要快速驗證特定時間軸事件是否精準撞擊觸發時，不需繁瑣地修改應用網頁程式碼，可直接利用專門的黑盒子檢視器進行除錯。</p>
+            
+            <h3>操作步驟：</h3>
+            <ol>
+                <li>開啟專案快速檢視工具 <a href="檢視ASE.html">檢視ASE.html</a>。</li>
+                <li>直接將您剛導出的 <code>animation_project.ase</code> 檔案拖曳進網頁中央的 dashed 虛線區域（或選取上傳）。</li>
+                <li>系統解壓核心會立刻調用 API 啟動動畫。如果您的動畫帶有完全透明背景，可以點擊 **「切換棋盤透明網格底色」** 按鈕，方便裸眼觀察角色邊緣去背細節。</li>
+                <li>下方的 **「時間軸事件標記即時日誌監控」** 黑色面板會啟動全域監聽。一旦播放線行經您當初在編輯器埋設事件的影格，面板會立刻精準印出觸發日誌（例如：<code>[時間] 節點 25 💥 觸發標記事件 → "hit_target"</code>），方便開發者驗證互動邏輯。</li>
+            </ol>
+
+            <div class="figure-box">
+                <img src="3.png" alt="專案檢視除錯工具介面預覽">
+                <div class="figure-caption">圖 3. 檢視ASE.html 內建棋盤底色切換與事件監控黑盒子之快速檢視工具</div>
+            </div>
+        </section>
+
+        <section>
+            <h2>四、 一般網頁外部 API 嵌入實戰篇 (<a href="hello2.html">hello2.html</a>)</h2>
+            <p>本研究開發之播放核心 API（<code>ase-player.js</code>）已成功部署於具有邊緣加速、位於台灣彰化的 Google Cloud Storage (GCS) 頂級高速資料中心，並配置好全域 CORS 跨來源開放規則。任何第三方的一般網站或部落格，**皆不需下載本地外連 JS 檔**，只需遵循以下三個步驟，即可零時延引用網頁組件。實作樣貌可參考驗證網頁：<a href="hello2.html">hello2.html</a>。</p>
+            
+            <h3>通用嵌入代碼範例：</h3>
+            <p class="no-indent">請在您要調用動畫的網頁 HTML 檔案中，參考並貼入以下標準結構：</p>
+
+<pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang="zh-TW"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;title&gt;一般網頁嵌入動畫展示&lt;/title&gt;
