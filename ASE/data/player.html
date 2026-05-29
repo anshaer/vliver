@@ -65,7 +65,7 @@
 <div class="player-fullscreen-container">
     <div class="loading-overlay" id="loading-layer">
         <div class="loading-spinner"></div>
-        <div class="loading-text" id="loading-status">正在載入專案資產包 01.ase...</div>
+        <div class="loading-text" id="loading-status">正在載入專案資產包 02.ase...</div>
     </div>
 
     <canvas id="ase-canvas"></canvas>
@@ -87,9 +87,9 @@
     const loadingLayer = document.getElementById('loading-layer');
     const loadingStatus = document.getElementById('loading-status');
 
-    // 1. 網頁啟動即自動抓取同目錄下的 01.ase
+    // 1. 網頁啟動即自動抓取同目錄下的 02.ase
     window.addEventListener('DOMContentLoaded', () => {
-        loadAndPlayProject('01.ase');
+        loadAndPlayProject('02.ase');
     });
 
     async FindAsset(url) {
@@ -142,7 +142,7 @@
         } catch (err) {
             console.error(err);
             if(loadingStatus) {
-                loadingStatus.innerHTML = `<span style="color:#ff8a80; font-weight:bold;">🚨 錯誤: ${err.message}</span><br><small style="color:#aaa; display:block; margin-top:5px;">請確認網頁是否透過 Local Server (如 Live Server) 運行，且 01.ase 與本網頁在同一目錄下。</small>`;
+                loadingStatus.innerHTML = `<span style="color:#ff8a80; font-weight:bold;">🚨 錯誤: ${err.message}</span><br><small style="color:#aaa; display:block; margin-top:5px;">請確認網頁是否透過 Local Server (如 Live Server) 運行，且 02.ase 與本網頁在同一目錄下。</small>`;
             }
             const spinner = document.querySelector('.loading-spinner');
             if(spinner) spinner.style.borderColor = '#ff8a80';
