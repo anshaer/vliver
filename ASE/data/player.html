@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASE 滿版自適應高畫質播放器</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <style>
+        /* ==========================================================================
+           🎨 滿版等比例外觀排版樣式表 (CSS)
+           ========================================================================== */
+        :root {
+            --mint-main: #8ee3cf;
+            --choco-dark: #3d2620;
+            --bg-dark: #1e1e1e; /* 採用沉浸式深色背景，突顯動畫視覺 */
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: var(--bg-dark); overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        /* 滿版視窗極限容器 */
+        .player-fullscreen-container {
+            width: 100vw; height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            position: relative;
+        }
+
+        /* 💡 核心亮點：利用 object-fit: contain 讓畫布自動計算「先碰高邊或寬邊」並完美置中 */
+        #ase-canvas {
+            width: 100%; height: 100%;
+            object-fit: contain; 
+            display: none; /* 載入完成前先隱藏 */
+            background: transparent;
+        }
+
+        /* 薄荷綠高質感 Loading 提示層 */
+        .loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--choco-dark); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-spinner {
+            width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.1);
+            border-radius: 50%; border-top-color: var(--mint-main);
+            animation: spin 1s linear infinite; margin-bottom: 15px;
+        }
+
+        .loading-text { color: #ffffff; font-size: 14px; font-weight: bold; letter-spacing: 1px; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="player-fullscreen-container">
+    <div class="loading-overlay" id="loading-layer">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loading-status">正在載入專案資產包 01.ase...</div>
+    </div>
+
+    <canvas id="ase-canvas"></canvas>
+</div>
+
+<script>
+    // ==========================================================================
+    // ⚙️ 滿版非同步播放核心邏輯區 (JavaScript)
+    // ==========================================================================
+
+    let config = null;
+    let imageElements = {};
+    let currentNode = 0;
+    let playDirection = 1;
+    let playInterval = null;
+
+    const canvas = document.getElementById('ase-canvas');
+    const ctx = canvas ? canvas.getContext('2d') : null;
+    const loadingLayer = document.getElementById('loading-layer');
+    const loadingStatus = document.getElementById('loading-status');
+
+    // 1. 網頁啟動即自動抓取同目錄下的 01.ase
+    window.addEventListener('DOMContentLoaded', () => {
+        loadAndPlayProject('01.ase');
+    });
+
+    async FindAsset(url) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`找不到資產檔案，HTTP 狀態碼: ${response.status}`);
+            const blob = await response.blob();
+            
+            if(loadingStatus) loadingStatus.textContent = "解壓二進位專案封包中...";
+            const zip = await JSZip.loadAsync(blob);
+            
+            // 讀取結構描述文字
+            const configFile = zip.file("config.json");
+            if (!configFile) throw new Error("封包記憶體中查無合規的描述檔 config.json！");
+            config = JSON.parse(await configFile.async("string"));
+            
+            // 初始化虛擬畫布解析度
+            canvas.width = config.width || 800;
+            canvas.height = config.height || 450;
+
+            // 提取圖片貼圖軌道並進行 Promise.all 平行解碼（內建防死鎖安全機制）
+            if(loadingStatus) loadingStatus.textContent = "多執行緒平行載入素材圖片...";
+            const imagePromises = config.images.map(async (imgData) => {
+                const pureName = imgData.filename.replace("images/", "");
+                const zipImg = zip.file("images/" + pureName);
+                if (zipImg) {
+                    const imgBlob = await zipImg.async("blob");
+                    const imgUrl = URL.createObjectURL(imgBlob);
+                    return new Promise((resolve) => {
+                        const img = new Image();
+                        img.src = imgUrl;
+                        img.onload = () => { imageElements[imgData.filename] = img; resolve(); };
+                        img.onerror = () => { console.warn(`圖片 ${pureName} 下載異常已跳過。`); resolve(); };
+                    });
+                }
+            });
+
+            await Promise.all(imagePromises);
+
+            // 移除 Loading 提示並點亮畫布舞台
+            if (loadingLayer) {
+                loadingLayer.style.opacity = '0';
+                setTimeout(() => loadingLayer.style.display = 'none', 500);
+            }
+            canvas.style.display = 'block';
+
+            // 驅動時鐘計時器循環渲染
+            startAnimationLoop();
+
+        } catch (err) {
+            console.error(err);
+            if(loadingStatus) {
+                loadingStatus.innerHTML = `<span style="color:#ff8a80; font-weight:bold;">🚨 錯誤: ${err.message}</span><br><small style="color:#aaa; display:block; margin-top:5px;">請確認網頁是否透過 Local Server (如 Live Server) 運行，且 01.ase 與本網頁在同一目錄下。</small>`;
+            }
+            const spinner = document.querySelector('.loading-spinner');
+            if(spinner) spinner.style.borderColor = '#ff8a80';
+        }
+    }
+
+    // 依據編輯器規格精準實作的五大高階緩動曲線解算核心
+    function computeProps(layer, node) {
+        if (node < layer.startNode || node > layer.endNode) return null;
+        let points = [{ node: layer.startNode, props: layer.init }];
+        Object.keys(layer.keyframes).forEach(k => { 
+            const n = parseInt(k); 
+            if(n > layer.startNode && n <= layer.endNode) points.push({ node: n, props: layer.keyframes[k] }); 
+        });
+        points.sort((a,b) => a.node - b.node);
+        if(node <= points[0].node) return points[0].props;
+        if(node >= points[points.length-1].node) return points[points.length-1].props;
+        
+        let p1 = points[0], p2 = points[0];
+        for(let i=0; i<points.length-1; i++){ 
+            if(node >= points[i].node && node <= points[i+1].node) { p1 = points[i]; p2 = points[i+1]; break; } 
+        }
+        
+        let t = (node - p1.node) / (p2.node - p1.node);
+        const ease = p1.props.easing || 'linear';
+        if (ease === 'easeIn') { t = t * t; } 
+        else if (ease === 'easeOut') { t = t * (2 - t); } 
+        else if (ease === 'easeInOut') { t = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; } 
+        else if (ease === 'bounce') {
+            let bT = t;
+            if (bT < (1/2.75)) { t = 7.5625*bT*bT; } 
+            else if (bT < (2/2.75)) { bT -= (1.5/2.75); t = 7.5625*bT*bT + 0.75; } 
+            else if (bT < (2.5/2.75)) { bT -= (2.25/2.75); t = 7.5625*bT*bT + 0.9375; } 
+            else { bT -= (2.625/2.75); t = 7.5625*bT*bT + 0.984375; }
+        }
+
+        return { 
+            x: p1.props.x + (p2.props.x - p1.props.x)*t, y: p1.props.y + (p2.props.y - p1.props.y)*t, 
+            w: p1.props.w + (p2.props.w - p1.props.w)*t, h: p1.props.h + (p2.props.h - p1.props.h)*t, 
+            rot: p1.props.rot + (p2.props.rot - p1.props.rot)*t, op: p1.props.op + (p2.props.op - p1.props.op)*t,
+            texture: t < 0.5 ? p1.props.texture : p2.props.texture,
+            flipX: t < 0.5 ? p1.props.flipX : p2.props.flipX,
+            flipY: t < 0.5 ? p1.props.flipY : p2.props.flipY,
+            event: node === p1.node ? p1.props.event : (node === p2.node ? p2.props.event : '')
+        };
+    }
+
+    // 2D GPU 硬體加速重繪
+    function drawFrame() {
+        if (!ctx || !config) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        for(let i = config.images.length - 1; i >= 0; i--) {
+            const layer = config.images[i];
+            const props = computeProps(layer, currentNode); if (!props) continue;
+            
+            let activeTexture = props.texture || layer.filename;
+            const img = imageElements[activeTexture] || imageElements[layer.filename]; if (!img) continue;
+            
+            let px = layer.pivotX ?? 0.5, py = layer.pivotY ?? 0.5;
+
+            ctx.save(); 
+            ctx.globalAlpha = Math.max(0, Math.min(1, props.op));
+            ctx.translate(props.x, props.y); 
+            ctx.rotate(props.rot * Math.PI / 180);
+            
+            let sX = props.flipX ? -1 : 1, sY = props.flipY ? -1 : 1;
+            if (sX !== 1 || sY !== 1) ctx.scale(sX, sY);
+
+            ctx.drawImage(img, -props.w * px, -props.h * py, props.w, props.h); 
+            ctx.restore();
+
+            // ⚡ 執行期自訂事件廣播（解耦連動）
+            if (props.event && props.event.trim() !== "") {
+                window.dispatchEvent(new CustomEvent('ase-event', {
+                    detail: { eventName: props.event, node: currentNode }
+                }));
+            }
+        }
+    }
+
+    // 動態計時循環驅動
+    function startAnimationLoop() {
+        const intervalMs = (config.nodeDuration || 0.1) * 1000;
+        playInterval = setInterval(() => {
+            if(config.loopType === 'forward') { 
+                currentNode = (currentNode + 1) % config.totalNodes; 
+            } else {
+                currentNode += playDirection;
+                if(currentNode >= config.totalNodes) { currentNode = config.totalNodes - 2; playDirection = -1; }
+                else if(currentNode < 0) { currentNode = 1; playDirection = 1; }
+            }
+            drawFrame();
+        }, intervalMs);
+    }
+
+    // 封裝載入接口
+    function loadAndPlayProject(url) {
+        FindAsset(url);
+    }
+</script>
+</body>
+</html>
