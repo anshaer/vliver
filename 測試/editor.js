@@ -3,520 +3,431 @@
  */
 
 // 1. 全域核心專案狀態資料結構
-let project = { 
-    width: 800, 
-    height: 450, 
-    totalNodes: 50, 
-    nodeDuration: 0.1, 
-    loopType: 'forward', 
-    images: [] 
-};
+let project = { width: 800, height: 450, totalNodes: 50, nodeDuration: 0.1, loopType: 'forward', images: [] };
+let loadedFiles = {}, imageObjects = {}, selectedImageId = null, currentNode = 0, isPlaying = false, playInterval = null, playDirection = 1;
+let isRecording = false;
 
-// 執行期暫存器
-let loadedFiles = {};       // 存放實體 File 物件，供匯出打包用 { 'pic.png': File }
-let imageObjects = {};      // 存放 Image 物件，供 Canvas 渲染用 { 'pic.png': Image }
-let selectedImageId = null; // 當前選中的圖層 ID
-let currentNode = 0;        // 當前時間軸影格索引位置
-let isPlaying = false;      // 播放狀態旗標
-let playInterval = null;    // 播放計時器
-let playDirection = 1;      // 來回循環模式下的方向指標碼
-
-// 滑鼠拖放狀態追蹤器
-let ts = { mode: null, lastX: 0, lastY: 0, layer: null };
+// 滑鼠拖放、縮放、旋轉狀態追蹤器
+let ts = { mode: null, lastX: 0, lastY: 0, initialProps: null, layer: null };
 
 // 2. DOM 元素節點快取
 const canvas = document.getElementById('main-canvas'), ctx = canvas.getContext('2d');
-const canvasW = document.getElementById('canvas-w'), canvasH = document.getElementById('canvas-h');
-const totalNodesInput = document.getElementById('total-nodes'), loopTypeSelect = document.getElementById('loop-type');
-const fileUpload = document.getElementById('file-upload'), layerListDiv = document.getElementById('layer-list');
-const nodeSlider = document.getElementById('node-slider'), directFrameInput = document.getElementById('direct-frame-input');
+const canvasW = document.getElementById('canvas-w'), canvasH = document.getElementById('canvas-h'), totalNodesInput = document.getElementById('total-nodes'), loopTypeSelect = document.getElementById('loop-type');
+const fileUpload = document.getElementById('file-upload'), layerListDiv = document.getElementById('layer-list'), nodeSlider = document.getElementById('node-slider'), directFrameInput = document.getElementById('direct-frame-input');
 const nodeIdxLbls = document.querySelectorAll('.node-idx-lbl'), timeSecLbl = document.getElementById('time-sec-lbl');
 const propertyPanel = document.getElementById('property-panel'), selectedTitle = document.getElementById('selected-title');
 
-// 3. 專案初始化配置
-function init() {
-    updateLayoutSettings();
-    bindGlobalEvents();
-    bindPropertyInputs();
-    drawFrame();
-}
+const propStart = document.getElementById('prop-start'), propEnd = document.getElementById('prop-end'), propLockRatio = document.getElementById('prop-lock-ratio');
+const pivotXInput = document.getElementById('pivot-x'), pivotYInput = document.getElementById('pivot-y');
+const curX = document.getElementById('cur-x'), curY = document.getElementById('cur-y'), curW = document.getElementById('cur-w'), curH = document.getElementById('cur-h'), curRot = document.getElementById('cur-rot'), curOp = document.getElementById('cur-op');
+const curTexture = document.getElementById('cur-texture'), curFlipX = document.getElementById('cur-flipx'), curFlipY = document.getElementById('cur-flipy'), curEasing = document.getElementById('cur-easing'), curEvent = document.getElementById('cur-event');
 
-// 4. 全域環境控制設定更新
+// 3. 畫布環境與全域設定同步更新
 function updateLayoutSettings() {
     project.width = parseInt(canvasW.value) || 800;
     project.height = parseInt(canvasH.value) || 450;
-    project.totalNodes = parseInt(totalNodesInput.value) || 50;
+    canvas.width = project.width; canvas.height = project.height;
+    project.totalNodes = Math.min(50, Math.max(2, parseInt(totalNodesInput.value) || 50));
     project.loopType = loopTypeSelect.value;
+    
+    nodeSlider.max = project.totalNodes - 1; directFrameInput.max = project.totalNodes - 1;
+    if(currentNode >= project.totalNodes) { currentNode = project.totalNodes - 1; }
+    nodeSlider.value = currentNode; directFrameInput.value = currentNode;
+    propStart.max = project.totalNodes - 1; propEnd.max = project.totalNodes - 1;
+    drawFrame();
+}
+[canvasW, canvasH, totalNodesInput, loopTypeSelect].forEach(el => el.addEventListener('change', updateLayoutSettings));
 
-    canvas.width = project.width;
-    canvas.height = project.height;
-    nodeSlider.max = project.totalNodes - 1;
-
-    if (currentNode >= project.totalNodes) {
-        currentNode = project.totalNodes - 1;
-        nodeSlider.value = currentNode;
-        directFrameInput.value = currentNode;
-    }
-
-    // 自動補齊或修正所有圖層的時間軸影格長度
-    project.images.forEach(layer => {
-        while (layer.frames.length < project.totalNodes) {
-            layer.frames.push(createDefaultFrameProps(layer.name, layer.frames.length === 0));
-        }
+// 4. 素材檔案異步上傳處理
+fileUpload.addEventListener('change', (e) => {
+    Array.from(e.target.files).forEach(file => {
+        if (loadedFiles[file.name]) return;
+        loadedFiles[file.name] = file;
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        img.onload = () => {
+            imageObjects[file.name] = img;
+            const ratio = img.width / img.height;
+            project.images.unshift({
+                id: "layer_" + Date.now() + "_" + Math.floor(Math.random()*1000),
+                filename: "images/" + file.name, rawName: file.name, aspect: ratio,
+                startNode: 0, endNode: project.totalNodes - 1, lockRatio: true,
+                pivotX: 0.5, pivotY: 0.5, 
+                init: { x: project.width/2, y: project.height/2, w: Math.min(img.width, 200), h: Math.min(img.width, 200)/ratio, rot: 0, op: 1, texture: '', flipX: false, flipY: false, easing: 'linear', event: '' },
+                keyframes: {}
+            });
+            updateTextureDropdowns(); renderLayerUI(); drawFrame();
+        };
     });
+});
 
-    updateFrameLabels();
+// 表情貼圖選單刷新
+function updateTextureDropdowns() {
+    const currentSel = curTexture.value;
+    curTexture.innerHTML = '<option value="">保持原圖</option>';
+    Object.keys(loadedFiles).forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = "images/" + name; opt.textContent = name;
+        curTexture.appendChild(opt);
+    });
+    curTexture.value = currentSel;
+}
+
+// 5. 圖層渲染與排序管理
+function renderLayerUI() {
+    layerListDiv.innerHTML = '';
+    project.images.forEach((layer, idx) => {
+        const item = document.createElement('div');
+        item.className = 'layer-item' + (selectedImageId === layer.id ? ' active' : '');
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'layer-name'; nameSpan.textContent = layer.rawName;
+        nameSpan.onclick = () => selectLayer(layer.id);
+        item.appendChild(nameSpan);
+
+        const btnGrp = document.createElement('div');
+        btnGrp.className = 'layer-btns';
+        const upBtn = document.createElement('button'); upBtn.className = 'layer-btn'; upBtn.textContent = '▲'; upBtn.onclick = (e) => { e.stopPropagation(); moveLayer(idx, -1); };
+        const downBtn = document.createElement('button'); downBtn.className = 'layer-btn'; downBtn.textContent = '▼'; downBtn.onclick = (e) => { e.stopPropagation(); moveLayer(idx, 1); };
+        const delBtn = document.createElement('button'); delBtn.className = 'layer-btn del'; delBtn.textContent = '✖'; delBtn.onclick = (e) => { e.stopPropagation(); deleteLayer(idx); };
+
+        btnGrp.appendChild(upBtn); btnGrp.appendChild(downBtn); btnGrp.appendChild(delBtn);
+        item.appendChild(btnGrp); layerListDiv.appendChild(item);
+    });
+}
+
+function moveLayer(index, dir) {
+    let targetIndex = index + dir; if (targetIndex < 0 || targetIndex >= project.images.length) return;
+    let temp = project.images[index]; project.images[index] = project.images[targetIndex]; project.images[targetIndex] = temp;
+    renderLayerUI(); drawFrame();
+}
+
+function deleteLayer(index) {
+    if(project.images[index].id === selectedImageId) { selectedImageId = null; propertyPanel.style.display = 'none'; }
+    project.images.splice(index, 1); renderLayerUI(); drawFrame();
+}
+
+// 6. 選取圖層與屬性面板同步
+function selectLayer(id) {
+    selectedImageId = id; renderLayerUI();
+    const layer = project.images.find(l => l.id === id);
+    if(!layer) { propertyPanel.style.display = 'none'; drawFrame(); return; }
+    
+    propertyPanel.style.display = 'block';
+    selectedTitle.textContent = `編輯: ${layer.rawName}`;
+    propStart.value = layer.startNode; propEnd.value = layer.endNode;
+    propLockRatio.checked = layer.lockRatio;
+    pivotXInput.value = layer.pivotX; pivotYInput.value = layer.pivotY;
+    
+    nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode); directFrameInput.value = currentNode;
+    timeSecLbl.textContent = (currentNode * 0.1).toFixed(1);
+
+    const currentProps = computeProps(layer, currentNode);
+    if(currentProps) {
+        curX.value = Math.round(currentProps.x); curY.value = Math.round(currentProps.y);
+        curW.value = Math.round(currentProps.w); curH.value = Math.round(currentProps.h);
+        curRot.value = Math.round(currentProps.rot); curOp.value = currentProps.op;
+        curTexture.value = currentProps.texture || '';
+        curFlipX.checked = currentProps.flipX || false;
+        curFlipY.checked = currentProps.flipY || false;
+        curEasing.value = currentProps.easing || 'linear';
+        curEvent.value = currentProps.event || '';
+    }
     drawFrame();
 }
 
-function createDefaultFrameProps(textureName, isFirst = false) {
-    return {
-        isKey: isFirst, // 預設只有第 0 幀是關鍵影格
-        x: project.width / 2,
-        y: project.height / 2,
-        scaleX: 1,
-        scaleY: 1,
-        rotate: 0,
-        opacity: 1,
-        texture: textureName,
-        easing: 'linear',
-        event: ''
+function autoActivateGlobalKeyframe() {
+    if (currentNode === 0) return;
+    project.images.forEach(layer => {
+        if (!layer.keyframes[currentNode]) {
+            const computed = computeProps(layer, currentNode);
+            layer.keyframes[currentNode] = computed ? { ...computed } : { ...layer.init };
+        }
+    });
+}
+
+function syncPanelToData() {
+    if (!selectedImageId) return;
+    const layer = project.images.find(l => l.id === selectedImageId);
+    if (!layer) return;
+
+    layer.startNode = parseInt(propStart.value) || 0;
+    layer.endNode = parseInt(propEnd.value) || 0;
+    layer.lockRatio = propLockRatio.checked;
+    layer.pivotX = parseFloat(pivotXInput.value) ?? 0.5;
+    layer.pivotY = parseFloat(pivotYInput.value) ?? 0.5;
+
+    autoActivateGlobalKeyframe();
+
+    let wVal = parseFloat(curW.value) || 10, hVal = parseFloat(curH.value) || 10;
+    if (layer.lockRatio && document.activeElement === curW) hVal = wVal / layer.aspect;
+    if (layer.lockRatio && document.activeElement === curH) wVal = hVal * layer.aspect;
+    curW.value = Math.round(wVal); curH.value = Math.round(hVal);
+
+    let targetData = { 
+        x: parseFloat(curX.value)||0, y: parseFloat(curY.value)||0, w: wVal, h: hVal, rot: parseFloat(curRot.value)||0, op: parseFloat(curOp.value) ?? 1,
+        texture: curTexture.value, flipX: curFlipX.checked, flipY: curFlipY.checked, easing: curEasing.value, event: curEvent.value
+    };
+
+    if (currentNode === 0) { layer.init = targetData; } 
+    else { layer.keyframes[currentNode] = targetData; }
+    drawFrame();
+}
+
+[propStart, propEnd, propLockRatio, pivotXInput, pivotYInput, curX, curY, curW, curH, curRot, curOp, curTexture, curFlipX, curFlipY, curEasing, curEvent].forEach(el => el.addEventListener('input', syncPanelToData));
+
+function changeCurrentNode(nodeValue) {
+    currentNode = Math.min(project.totalNodes - 1, Math.max(0, parseInt(nodeValue) || 0));
+    nodeSlider.value = currentNode; directFrameInput.value = currentNode;
+    nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode); timeSecLbl.textContent = (currentNode * 0.1).toFixed(1);
+    if(selectedImageId) selectLayer(selectedImageId); else drawFrame();
+}
+nodeSlider.addEventListener('input', (e) => changeCurrentNode(e.target.value));
+directFrameInput.addEventListener('input', (e) => changeCurrentNode(e.target.value));
+
+// 7. ④ 功能：五大進階緩動數學曲線插值解算核心
+function computeProps(layer, node) {
+    if (node < layer.startNode || node > layer.endNode) return null;
+    let points = [{ node: layer.startNode, props: layer.init }];
+    Object.keys(layer.keyframes).forEach(k => { const n = parseInt(k); if(n > layer.startNode && n <= layer.endNode) points.push({ node: n, props: layer.keyframes[k] }); });
+    points.sort((a,b) => a.node - b.node);
+    if(node <= points[0].node) return points[0].props;
+    if(node >= points[points.length-1].node) return points[points.length-1].props;
+    
+    let p1 = points[0], p2 = points[0];
+    for(let i=0; i<points.length-1; i++){ if(node >= points[i].node && node <= points[i+1].node) { p1 = points[i]; p2 = points[i+1]; break; } }
+    
+    let t = (node - p1.node) / (p2.node - p1.node);
+    const ease = p1.props.easing || 'linear';
+    if (ease === 'easeIn') { t = t * t; } 
+    else if (ease === 'easeOut') { t = t * (2 - t); } 
+    else if (ease === 'easeInOut') { t = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; } 
+    else if (ease === 'bounce') {
+        let bT = t;
+        if (bT < (1/2.75)) { t = 7.5625*bT*bT; } 
+        else if (bT < (2/2.75)) { bT -= (1.5/2.75); t = 7.5625*bT*bT + 0.75; } 
+        else if (bT < (2.5/2.75)) { bT -= (2.25/2.75); t = 7.5625*bT*bT + 0.9375; } 
+        else { bT -= (2.625/2.75); t = 7.5625*bT*bT + 0.984375; }
+    }
+
+    return { 
+        x: p1.props.x + (p2.props.x - p1.props.x)*t, y: p1.props.y + (p2.props.y - p1.props.y)*t, 
+        w: p1.props.w + (p2.props.w - p1.props.w)*t, h: p1.props.h + (p2.props.h - p1.props.h)*t, 
+        rot: p1.props.rot + (p2.props.rot - p1.props.rot)*t, op: p1.props.op + (p2.props.op - p1.props.op)*t,
+        texture: t < 0.5 ? p1.props.texture : p2.props.texture,
+        flipX: t < 0.5 ? p1.props.flipX : p2.props.flipX,
+        flipY: t < 0.5 ? p1.props.flipY : p2.props.flipY,
+        easing: p1.props.easing,
+        event: node === p1.node ? p1.props.event : (node === p2.node ? p2.props.event : '')
     };
 }
 
-// 5. 動態關鍵影格補間計算核心 (動態插值)
-function getFrameProps(layer, frameIdx) {
-    const frames = layer.frames;
-    if (!frames[frameIdx]) return createDefaultFrameProps(layer.name);
-    if (frames[frameIdx].isKey) return frames[frameIdx];
-
-    // 尋找前一個最近的關鍵影格
-    let prevIdx = -1;
-    for (let i = frameIdx - 1; i >= 0; i--) {
-        if (frames[i] && frames[i].isKey) { prevIdx = i; break; }
-    }
-
-    // 尋找後一個最近的關鍵影格
-    let nextIdx = -1;
-    for (let i = frameIdx + 1; i < project.totalNodes; i++) {
-        if (frames[i] && frames[i].isKey) { nextIdx = i; break; }
-    }
-
-    if (prevIdx === -1 && nextIdx === -1) return frames[0] || createDefaultFrameProps(layer.name, true);
-    if (prevIdx === -1) return frames[nextIdx];
-    if (nextIdx === -1) return frames[prevIdx];
-
-    // 執行兩關鍵影格間的 Easing 數值插值計算
-    const prevKey = frames[prevIdx];
-    const nextKey = frames[nextIdx];
-    const t = (frameIdx - prevIdx) / (nextIdx - prevIdx);
-    const easedT = applyEasing(t, prevKey.easing || 'linear');
-
-    return {
-        isKey: false,
-        x: prevKey.x + (nextKey.x - prevKey.x) * easedT,
-        y: prevKey.y + (nextKey.y - prevKey.y) * easedT,
-        scaleX: prevKey.scaleX + (nextKey.scaleX - prevKey.scaleX) * easedT,
-        scaleY: prevKey.scaleY + (nextKey.scaleY - prevKey.scaleY) * easedT,
-        rotate: prevKey.rotate + (nextKey.rotate - prevKey.rotate) * easedT,
-        opacity: prevKey.opacity + (nextKey.opacity - prevKey.opacity) * easedT,
-        texture: prevKey.texture,
-        easing: prevKey.easing,
-        event: prevKey.event
-    };
-}
-
-function applyEasing(t, type) {
-    switch(type) {
-        case 'easeIn': return t * t;
-        case 'easeOut': return t * (2 - t);
-        case 'easeInOut': return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-        case 'bounce':
-            const n1 = 7.5625, d1 = 2.75;
-            if (t < 1 / d1) return n1 * t * t;
-            else if (t < 2 / d1) return n1 * (t -= 1.5 / d1) * t + 0.75;
-            else if (t < 2.5 / d1) return n1 * (t -= 2.25 / d1) * t + 0.9375;
-            else return n1 * (t -= 2.625 / d1) * t + 0.984375;
-        default: return t;
-    }
-}
-
-// 6. Canvas 核心渲染邏輯
+// 8. 畫布即時重繪渲染引擎
 function drawFrame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for(let i = project.images.length - 1; i >= 0; i--) {
+        const layer = project.images[i];
+        const props = computeProps(layer, currentNode); if (!props) continue;
+        
+        let activeTexture = props.texture || layer.filename;
+        let pureTexName = activeTexture.replace("images/", "");
+        const img = imageObjects[pureTexName] || imageObjects[layer.rawName]; if (!img) continue;
+        
+        let px = layer.pivotX ?? 0.5, py = layer.pivotY ?? 0.5;
 
-    // 繪製工作透明棋盤背景格
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = '#e0ece6';
-    ctx.lineWidth = 1;
-    for(let i = 0; i < canvas.width; i += 20) {
-        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+        ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, props.op));
+        ctx.translate(props.x, props.y); ctx.rotate(props.rot * Math.PI / 180);
+        
+        let sX = props.flipX ? -1 : 1, sY = props.flipY ? -1 : 1;
+        if (sX !== 1 || sY !== 1) ctx.scale(sX, sY);
+
+        ctx.drawImage(img, -props.w * px, -props.h * py, props.w, props.h); ctx.restore();
     }
-    for(let j = 0; j < canvas.height; j += 20) {
-        ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
-    }
 
-    // 由底層向上遍歷渲染圖層
-    project.images.forEach(layer => {
-        const props = getFrameProps(layer, currentNode);
-        const img = imageObjects[props.texture];
-        if (!img) return;
+    // 繪製包含選取狀態、控制手把與自訂紅色錨點的外框
+    if(selectedImageId && !isPlaying && !isRecording) {
+        const layer = project.images.find(l => l.id === selectedImageId);
+        const props = computeProps(layer, currentNode);
+        if(props) {
+            let px = layer.pivotX ?? 0.5, py = layer.pivotY ?? 0.5;
+            let rxCorner = props.w * (1 - px), ryCorner = props.h * (1 - py);
+            let rotX = props.w * (0.5 - px), rotY = -props.h * py;
 
-        ctx.save();
-        ctx.globalAlpha = props.opacity;
-        ctx.translate(props.x, props.y);
-        ctx.rotate((props.rotate * Math.PI) / 180);
-        ctx.scale(props.scaleX, props.scaleY);
-
-        ctx.drawImage(img, -img.width / 2, -img.height / 2);
-
-        // 如果目前選中該圖層，繪製外框線與控制節點
-        if (layer.id === selectedImageId) {
-            ctx.strokeStyle = 'rgba(142, 227, 207, 0.9)';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(-img.width / 2, -img.height / 2, img.width, img.height);
-            ctx.fillStyle = 'var(--choco-dark)';
-            ctx.fillRect(-img.width/2 - 4, -img.height/2 - 4, 8, 8);
-            ctx.fillRect(img.width/2 - 4, -img.height/2 - 4, 8, 8);
-            ctx.fillRect(-img.width/2 - 4, img.height/2 - 4, 8, 8);
-            ctx.fillRect(img.width/2 - 4, img.height/2 - 4, 8, 8);
+            ctx.save(); ctx.translate(props.x, props.y); ctx.rotate(props.rot * Math.PI / 180);
+            ctx.strokeStyle = '#007fff'; ctx.lineWidth = 2; 
+            ctx.strokeRect(-props.w * px, -props.h * py, props.w, props.h);
+            
+            // 右下角縮放點
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(rxCorner - 6, ryCorner - 6, 12, 12);
+            ctx.strokeStyle = '#007fff'; ctx.strokeRect(rxCorner - 6, ryCorner - 6, 12, 12);
+            
+            // 上方旋轉點
+            ctx.beginPath(); ctx.moveTo(rotX, rotY); ctx.lineTo(rotX, rotY - 25); ctx.stroke();
+            ctx.beginPath(); ctx.arc(rotX, rotY - 25, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            
+            // ① 功能：繪製自訂中心紅色原點把手位置
+            ctx.fillStyle = '#ff0000'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
         }
-        ctx.restore();
-    });
+    }
 }
 
-// 7. 新增圖層（上傳一般圖片素材）
-fileUpload.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+// 9. 畫布滑鼠矩陣座標換算與拖拉事件監聽
+function getRotatedLocalCoords(layer, mx, my) {
+    const props = computeProps(layer, currentNode); if(!props) return null;
+    const rad = -props.rot * Math.PI / 180;
+    const dx = mx - props.x, dy = my - props.y;
+    return { x: dx * Math.cos(rad) - dy * Math.sin(rad), y: dx * Math.sin(rad) + dy * Math.cos(rad), props: props };
+}
 
-    const filename = file.name;
-    loadedFiles[filename] = file;
+canvas.addEventListener('mousedown', (e) => {
+    if(isPlaying || isRecording) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.top || (e.clientY - rect.top); // 確保座標精準
 
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-    img.onload = () => {
-        imageObjects[filename] = img;
+    let hitFound = false;
+    for(let i = 0; i < project.images.length; i++) {
+        const layer = project.images[i];
+        const local = getRotatedLocalCoords(layer, mx, my); if(!local) continue;
+        
+        let px = layer.pivotX ?? 0.5, py = layer.pivotY ?? 0.5;
+        let rxCorner = local.props.w * (1 - px), ryCorner = local.props.h * (1 - py);
+        let rotX = local.props.w * (0.5 - px), rotY = -local.props.h * py;
 
-        const newLayer = {
-            id: 'layer_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
-            name: filename,
-            filename: 'images/' + filename,
-            frames: []
-        };
-
-        for (let i = 0; i < project.totalNodes; i++) {
-            newLayer.frames.push(createDefaultFrameProps(filename, i === 0));
+        if(layer.id === selectedImageId) {
+            if(Math.sqrt((local.x - rotX)*(local.x - rotX) + (local.y - (rotY - 25))*(local.y - (rotY - 25))) < 12) {
+                ts = { mode: 'rotate', lastX: mx, lastY: my, initialProps: { ...local.props }, layer: layer }; hitFound = true; break;
+            }
+            if(Math.abs(local.x - rxCorner) < 12 && Math.abs(local.y - ryCorner) < 12) {
+                ts = { mode: 'resize', lastX: mx, lastY: my, initialProps: { ...local.props }, layer: layer }; hitFound = true; break;
+            }
         }
 
-        project.images.push(newLayer);
-        selectedImageId = newLayer.id;
-
-        renderLayerUI();
-        updateTextureDropdowns();
-        updatePropertyPanel();
-        drawFrame();
-        fileUpload.value = '';
-    };
+        if(local.x >= -local.props.w*px && local.x <= local.props.w*(1-px) && local.y >= -local.props.h*py && local.y <= local.props.h*(1-py)) {
+            selectLayer(layer.id);
+            ts = { mode: 'move', lastX: mx, lastY: my, initialProps: { ...local.props }, layer: layer }; hitFound = true; break;
+        }
+    }
+    if(!hitFound) { selectedImageId = null; renderLayerUI(); propertyPanel.style.display = 'none'; drawFrame(); }
 });
 
-// 8. 渲染左側圖層介面列
-function renderLayerUI() {
-    layerListDiv.innerHTML = '';
-    // 反向渲染（讓最上面的圖層顯示在列表頂部）
-    for (let i = project.images.length - 1; i >= 0; i--) {
-        const layer = project.images[i];
-        const div = document.createElement('div');
-        div.className = `layer-item ${layer.id === selectedImageId ? 'active' : ''}`;
-        div.innerHTML = `
-            <span class="layer-name">${layer.name}</span>
-            <div class="layer-btns">
-                <button class="layer-btn up-btn">▲</button>
-                <button class="layer-btn down-btn">▼</button>
-                <button class="layer-btn del-btn del">刪除</button>
-            </div>
-        `;
+window.addEventListener('mousemove', (e) => {
+    if(!ts.mode) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const layer = ts.layer, initProps = ts.initialProps;
+    const deltaX = mx - ts.lastX, deltaY = my - ts.lastY;
 
-        div.addEventListener('click', (e) => {
-            if (e.target.classList.contains('layer-btn')) return;
-            selectedImageId = layer.id;
-            renderLayerUI();
-            updatePropertyPanel();
-            drawFrame();
-        });
+    autoActivateGlobalKeyframe();
+    let target = currentNode === 0 ? layer.init : layer.keyframes[currentNode];
 
-        div.querySelector('.up-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (i < project.images.length - 1) {
-                let temp = project.images[i];
-                project.images[i] = project.images[i+1];
-                project.images[i+1] = temp;
-                renderLayerUI(); drawFrame();
-            }
-        });
-
-        div.querySelector('.down-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (i > 0) {
-                let temp = project.images[i];
-                project.images[i] = project.images[i-1];
-                project.images[i-1] = temp;
-                renderLayerUI(); drawFrame();
-            }
-        });
-
-        div.querySelector('.del-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            project.images.splice(i, 1);
-            if (selectedImageId === layer.id) {
-                selectedImageId = null;
-                propertyPanel.style.display = 'none';
-            }
-            renderLayerUI(); updateTextureDropdowns(); drawFrame();
-        });
-
-        layerListDiv.appendChild(div);
-    }
-}
-
-// 9. 右側屬性面板資訊更新與同步
-function updatePropertyPanel() {
-    const layer = project.images.find(l => l.id === selectedImageId);
-    if (!layer) {
-        propertyPanel.style.display = 'none';
-        return;
-    }
-    propertyPanel.style.display = 'block';
-    selectedTitle.textContent = `圖層屬性: ${layer.name}`;
-
-    const props = layer.frames[currentNode];
-    document.getElementById('prop-is-key').checked = props.isKey;
-    document.getElementById('prop-x').value = Math.round(props.x);
-    document.getElementById('prop-y').value = Math.round(props.y);
-    document.getElementById('prop-scale-x').value = props.scaleX;
-    document.getElementById('prop-scale-y').value = props.scaleY;
-    document.getElementById('prop-rotate').value = props.rotate;
-    document.getElementById('prop-opacity').value = props.opacity;
-    document.getElementById('prop-texture').value = props.texture;
-    document.getElementById('prop-easing').value = props.easing;
-    document.getElementById('cur-event').value = props.event;
-}
-
-function bindPropertyInputs() {
-    const inputsConfig = [
-        { id: 'prop-is-key', field: 'isKey', type: 'checkbox' },
-        { id: 'prop-x', field: 'x', type: 'int' },
-        { id: 'prop-y', field: 'y', type: 'int' },
-        { id: 'prop-scale-x', field: 'scaleX', type: 'float' },
-        { id: 'prop-scale-y', field: 'scaleY', type: 'float' },
-        { id: 'prop-rotate', field: 'rotate', type: 'int' },
-        { id: 'prop-opacity', field: 'opacity', type: 'float' },
-        { id: 'prop-texture', field: 'texture', type: 'raw' },
-        { id: 'prop-easing', field: 'easing', type: 'raw' },
-        { id: 'cur-event', field: 'event', type: 'raw' }
-    ];
-
-    inputsConfig.forEach(cfg => {
-        const el = document.getElementById(cfg.id);
-        const eventType = (cfg.type === 'checkbox' || cfg.type === 'raw' && el.tagName === 'SELECT') ? 'change' : 'input';
+    if(ts.mode === 'move') {
+        target.x += deltaX; target.y += deltaY;
+    } 
+    else if(ts.mode === 'resize') {
+        const local = getRotatedLocalCoords(layer, mx, my);
+        let px = layer.pivotX ?? 0.5, py = layer.pivotY ?? 0.5;
+        let fx = 1 - px; if(Math.abs(fx) < 0.05) fx = 0.05;
+        let fy = 1 - py; if(Math.abs(fy) < 0.05) fy = 0.05;
         
-        el.addEventListener(eventType, () => {
-            const layer = project.images.find(l => l.id === selectedImageId);
-            if (!layer) return;
+        let newW = Math.max(10, local.x / fx);
+        let newH = Math.max(10, local.y / fy);
+        if(layer.lockRatio) { newH = newW / layer.aspect; }
+        target.w = newW; target.h = newH;
+    } 
+    else if(ts.mode === 'rotate') {
+        const angle = Math.atan2(my - initProps.y, mx - initProps.x) * 180 / Math.PI;
+        target.rot = Math.round((angle + 90) % 360);
+    }
 
-            let value;
-            if (cfg.type === 'checkbox') value = el.checked;
-            else if (cfg.type === 'int') value = parseInt(el.value) || 0;
-            else if (cfg.type === 'float') value = parseFloat(el.value) || 0;
-            else value = el.value;
+    ts.lastX = mx; ts.lastY = my; selectLayer(selectedImageId);
+});
 
-            layer.frames[currentNode][cfg.field] = value;
-            drawFrame();
+window.addEventListener('mouseup', () => { ts.mode = null; });
+
+// 10. 播放預覽控制器
+document.getElementById('btn-play').addEventListener('click', () => {
+    if(isPlaying || isRecording) return; isPlaying = true; playDirection = 1;
+    playInterval = setInterval(() => {
+        if(project.loopType === 'forward') { currentNode = (currentNode + 1) % project.totalNodes; } 
+        else {
+            currentNode += playDirection;
+            if(currentNode >= project.totalNodes) { currentNode = project.totalNodes - 2; playDirection = -1; }
+            else if(currentNode < 0) { currentNode = 1; playDirection = 1; }
+        }
+        nodeSlider.value = currentNode; directFrameInput.value = currentNode;
+        nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode); timeSecLbl.textContent = (currentNode * 0.1).toFixed(1);
+        
+        // ⑤ 觸發事件回報印出於控制台
+        project.images.forEach(l => {
+            const p = computeProps(l, currentNode);
+            if(p && p.event && currentNode === parseInt(nodeSlider.value)) console.log(`[製作器預覽事件] ${l.rawName} -> 觸發: ${p.event}`);
         });
-    });
-}
 
-function updateTextureDropdowns() {
-    const select = document.getElementById('prop-texture');
-    select.innerHTML = '';
-    Object.keys(imageObjects).forEach(key => {
-        const opt = document.createElement('option');
-        opt.value = key; opt.textContent = key;
-        select.appendChild(opt);
-    });
-}
-
-// 10. 時間軸與播放操作控制
-function bindGlobalEvents() {
-    canvasW.addEventListener('change', updateLayoutSettings);
-    canvasH.addEventListener('change', updateLayoutSettings);
-    totalNodesInput.addEventListener('change', updateLayoutSettings);
-    loopTypeSelect.addEventListener('change', updateLayoutSettings);
-
-    nodeSlider.addEventListener('input', () => {
-        currentNode = parseInt(nodeSlider.value);
-        directFrameInput.value = currentNode;
-        updateFrameLabels(); updatePropertyPanel(); drawFrame();
-    });
-
-    directFrameInput.addEventListener('input', () => {
-        let val = parseInt(directFrameInput.value) || 0;
-        if (val < 0) val = 0;
-        if (val >= project.totalNodes) val = project.totalNodes - 1;
-        currentNode = val;
-        nodeSlider.value = currentNode;
-        updateFrameLabels(); updatePropertyPanel(); drawFrame();
-    });
-
-    document.getElementById('btn-play').addEventListener('click', () => {
-        if (isPlaying) return;
-        isPlaying = true;
-        playInterval = setInterval(() => {
-            if (project.loopType === 'forward') {
-                currentNode++;
-                if (currentNode >= project.totalNodes) currentNode = 0;
-            } else { // pingpong
-                currentNode += playDirection;
-                if (currentNode >= project.totalNodes) { currentNode = project.totalNodes - 2; playDirection = -1; }
-                if (currentNode < 0) { currentNode = 1; playDirection = 1; }
-            }
-            nodeSlider.value = currentNode;
-            directFrameInput.value = currentNode;
-            updateFrameLabels(); updatePropertyPanel(); drawFrame();
-        }, project.nodeDuration * 1000);
-    });
-
-    document.getElementById('btn-stop').addEventListener('click', () => {
-        isPlaying = false;
-        clearInterval(playInterval);
-    });
-
-    // 11. 畫布上的滑鼠即時拖曳定位圖層邏輯
-    canvas.addEventListener('mousedown', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        let foundLayer = null;
-        for (let i = project.images.length - 1; i >= 0; i--) {
-            let layer = project.images[i];
-            let props = getFrameProps(layer, currentNode);
-            let img = imageObjects[props.texture];
-            if (!img) continue;
-
-            // 簡易範圍碰撞箱檢測
-            if (Math.abs(mouseX - props.x) < (img.width*props.scaleX)/2 && 
-                Math.abs(mouseY - props.y) < (img.height*props.scaleY)/2) {
-                foundLayer = layer;
-                break;
-            }
-        }
-
-        if (foundLayer) {
-            selectedImageId = foundLayer.id;
-            // 點選並移動時，強制將當前影格標記固定為「關鍵影格」以記錄位移
-            foundLayer.frames[currentNode].isKey = true;
-            let currentProps = getFrameProps(foundLayer, currentNode);
-            foundLayer.frames[currentNode].x = currentProps.x;
-            foundLayer.frames[currentNode].y = currentProps.y;
-
-            ts.mode = 'drag';
-            ts.lastX = mouseX;
-            ts.lastY = mouseY;
-            ts.layer = foundLayer;
-
-            renderLayerUI(); updatePropertyPanel(); drawFrame();
-        } else {
-            selectedImageId = null;
-            propertyPanel.style.display = 'none';
-            renderLayerUI(); drawFrame();
-        }
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-        if (ts.mode !== 'drag' || !ts.layer) return;
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        const dx = mouseX - ts.lastX;
-        const dy = mouseY - ts.lastY;
-
-        ts.layer.frames[currentNode].x += dx;
-        ts.layer.frames[currentNode].y += dy;
-
-        ts.lastX = mouseX;
-        ts.lastY = mouseY;
-
-        updatePropertyPanel();
         drawFrame();
+    }, project.nodeDuration * 1000);
+});
+
+document.getElementById('btn-stop').addEventListener('click', () => { clearInterval(playInterval); isPlaying = false; if(selectedImageId) selectLayer(selectedImageId); });
+
+// 11. 專案封包打包下載 (.ase)
+document.getElementById('btn-export').addEventListener('click', () => {
+    if(project.images.length === 0) { alert("請上傳圖片素材再行匯出！"); return; }
+    const zip = new JSZip(), imgFolder = zip.folder("images");
+    const cleanConfig = {
+        width: project.width, height: project.height, totalNodes: project.totalNodes, nodeDuration: project.nodeDuration, loopType: project.loopType,
+        images: project.images.map(l => ({ filename: l.filename, startNode: l.startNode, endNode: l.endNode, pivotX: l.pivotX, pivotY: l.pivotY, init: l.init, keyframes: l.keyframes }))
+    };
+    zip.file("config.json", JSON.stringify(cleanConfig, null, 2));
+    project.images.forEach(l => { const f = loadedFiles[l.rawName]; if(f) imgFolder.file(l.rawName, f); });
+    zip.generateAsync({type:"blob"}).then(blob => {
+        const url = URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = url; a.download = "animation_project.ase"; document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
     });
+});
 
-    const clearDrag = () => { ts.mode = null; ts.layer = null; };
-    canvas.addEventListener('mouseup', clearDrag);
-    canvas.addEventListener('mouseleave', clearDrag);
-}
+// 12. 畫布高畫質 WebM 錄製外包導出
+document.getElementById('btn-export-webm').addEventListener('click', async () => {
+    if(project.images.length === 0) { alert("請上傳素材！"); return; }
+    const btnWebm = document.getElementById('btn-export-webm'); const backup = btnWebm.textContent;
+    btnWebm.textContent = "錄製中..."; btnWebm.disabled = true;
+    document.getElementById('btn-stop').click(); isRecording = true;
+    
+    let queue = [];
+    for(let i=0; i<project.totalNodes; i++) queue.push(i);
+    if(project.loopType === 'pingpong') { for(let i=project.totalNodes-2; i>=0; i--) queue.push(i); }
 
-function updateFrameLabels() {
-    nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode);
-    timeSecLbl.textContent = (currentNode * project.nodeDuration).toFixed(1);
-}
+    const stream = canvas.captureStream(10);
+    let selectedFormat = ['video/webm;codecs=vp9', 'video/webm'].find(f => MediaRecorder.isTypeSupported(f));
+    const recorder = new MediaRecorder(stream, { mimeType: selectedFormat });
+    const chunks = []; recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
 
-// ==========================================================
-// 12. 專案封包匯出模組 (.ase 生成)
-// ==========================================================
-document.getElementById('btn-export').addEventListener('click', async () => {
-    if (project.images.length === 0) {
-        alert("匯出提示：當前專案內無任何圖層資產。");
+    const finishPromise = new Promise(r => recorder.onstop = () => r(new Blob(chunks, { type: 'video/webm' })));
+    recorder.start();
+
+    for(let f of queue) {
+        currentNode = f; nodeSlider.value = f; directFrameInput.value = f;
+        nodeIdxLbls.forEach(lbl => lbl.textContent = f); timeSecLbl.textContent = (f * 0.1).toFixed(1);
+        drawFrame(); await new Promise(r => setTimeout(r, 100));
     }
+    await new Promise(r => setTimeout(r, 100)); recorder.stop();
+    const finalBlob = await finishPromise;
 
-    try {
-        const zip = new JSZip();
-        
-        // 1. 過濾並建構結構乾淨的 config.json
-        const exportConfig = {
-            width: project.width,
-            height: project.height,
-            totalNodes: project.totalNodes,
-            nodeDuration: project.nodeDuration,
-            loopType: project.loopType,
-            images: project.images.map(l => ({
-                name: l.name,
-                filename: l.filename,
-                frames: l.frames
-            }))
-        };
+    const videoUrl = URL.createObjectURL(finalBlob); const dl = document.createElement('a');
+    dl.href = videoUrl; dl.download = "animation_output.webm"; document.body.appendChild(dl); dl.click();
+    document.body.removeChild(dl); URL.revokeObjectURL(videoUrl);
 
-        zip.file("config.json", JSON.stringify(exportConfig, null, 4));
-
-        // 2. 將全域暫存的實體圖片二進位檔案寫入 images/ 目錄
-        const imgFolder = zip.folder("images");
-        Object.keys(loadedFiles).forEach(key => {
-            imgFolder.file(key, loadedFiles[key]);
-        });
-
-        // 3. 封裝並導出下載
-        const contentBlob = await zip.generateAsync({ type: "blob" });
-        const dlLink = document.createElement('a');
-        dlLink.href = URL.createObjectURL(contentBlob);
-        dlLink.download = `project_${Date.now()}.ase`;
-        dlLink.click();
-
-    } catch (err) {
-        console.error(err);
-        alert("專案壓縮打包失敗！");
-    }
+    isRecording = false; btnWebm.textContent = backup; btnWebm.disabled = false; changeCurrentNode(0);
 });
 
 // ==========================================================
 // 13. 核心功能：解開 .ase 專案壓縮包上傳還原
 // ==========================================================
+const btnImport = document.getElementById('btn-import');
 const aseUpload = document.getElementById('ase-upload');
-const btnImportTrigger = document.getElementById('btn-import-trigger');
 
-if (btnImportTrigger && aseUpload) {
-    btnImportTrigger.addEventListener('click', () => aseUpload.click());
+if (btnImport && aseUpload) {
+    btnImport.addEventListener('click', () => aseUpload.click());
 }
 
 aseUpload.addEventListener('change', async (e) => {
@@ -526,7 +437,6 @@ aseUpload.addEventListener('change', async (e) => {
     try {
         const zip = await JSZip.loadAsync(file);
         const configFile = zip.file("config.json");
-        
         if (!configFile) {
             alert("讀取失敗：找不到核心專案設定檔 config.json！");
             return;
@@ -535,46 +445,42 @@ aseUpload.addEventListener('change', async (e) => {
         const configText = await configFile.async("text");
         const importedConfig = JSON.parse(configText);
 
-        // A. 導入全域設定與 DOM 同步
+        // A. 填入環境全域變數設定並同步 UI 數值
         canvasW.value = importedConfig.width || 800;
         canvasH.value = importedConfig.height || 450;
         totalNodesInput.value = importedConfig.totalNodes || 50;
         loopTypeSelect.value = importedConfig.loopType || 'forward';
 
-        project.width = parseInt(canvasW.value);
-        project.height = parseInt(canvasH.value);
-        project.totalNodes = parseInt(totalNodesInput.value);
-        project.nodeDuration = importedConfig.nodeDuration || 0.1;
-        project.loopType = importedConfig.loopType;
-        project.images = importedConfig.images || [];
+        updateLayoutSettings();
 
-        // B. 完全清空初始化當前執行快取
+        // B. 初始化當前專案緩存，避免髒資料殘留
         loadedFiles = {};
         imageObjects = {};
         selectedImageId = null;
         propertyPanel.style.display = 'none';
 
-        // C. 還原解析 images/ 中的二進位圖檔並綁定回 URL 快取
+        // C. 解析圖層，並對 images/ 資料夾下的二進位原始圖檔執行異步重載
         const imagePromises = [];
+        const importedImages = importedConfig.images || [];
 
-        project.images.forEach((layer) => {
-            // 動態補齊在匯出時被濾除的執行期專用隨機 ID
+        for (let layer of importedImages) {
+            // 還原匯出時被濾除的執行期專用欄位與隨機 ID
+            layer.rawName = layer.filename.replace("images/", "");
             layer.id = "layer_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
-            const rawImageName = layer.name; 
+            if (layer.lockRatio === undefined) layer.lockRatio = true;
 
-            const zipImgFile = zip.file(`images/${rawImageName}`);
+            const zipImgFile = zip.file(layer.filename) || zip.file("images/" + layer.rawName);
             if (zipImgFile) {
                 const promise = zipImgFile.async("blob").then((blob) => {
-                    // 包裝回實體 File 結構
-                    const imgFile = new File([blob], rawImageName, { type: blob.type });
-                    loadedFiles[rawImageName] = imgFile;
+                    const imgFile = new File([blob], layer.rawName, { type: blob.type });
+                    loadedFiles[layer.rawName] = imgFile;
 
-                    // 重新建立 Canvas 連動需要的 Image 物件
                     return new Promise((resolve) => {
                         const img = new Image();
                         img.src = URL.createObjectURL(imgFile);
                         img.onload = () => {
-                            imageObjects[rawImageName] = img;
+                            imageObjects[layer.rawName] = img;
+                            layer.aspect = img.width / img.height; // 重算寬高比，完全解決上傳圖片後鎖定等比例失效的問題
                             resolve();
                         };
                         img.onerror = () => resolve();
@@ -582,30 +488,26 @@ aseUpload.addEventListener('change', async (e) => {
                 });
                 imagePromises.push(promise);
             }
-        });
+        }
 
-        // 等待所有異步載入的圖層圖片就緒
+        // 等待所有專案圖片完全解壓與加載完畢
         await Promise.all(imagePromises);
 
-        // D. 重設時間軸狀態並刷新所有編輯器介面元件
-        currentNode = 0;
-        nodeSlider.value = 0;
-        directFrameInput.value = 0;
-
-        updateLayoutSettings();
+        // D. 套用圖層資料並全面刷新界面
+        project.images = importedImages;
         updateTextureDropdowns();
         renderLayerUI();
-        drawFrame();
+        changeCurrentNode(0);
 
-        alert("🎉 .ase 專案檔已成功上傳匯入！所有影格軌道與補間參數皆已還原。");
+        alert("🎉 .ase 專案檔已成功匯入！所有影格軌道與素材已完全還原。");
 
     } catch (err) {
         console.error("Import Error: ", err);
-        alert("匯入失敗！請檢查檔案是否損毀或非標準格式。");
+        alert("匯入失敗！請確認該檔案是否為本系統導出的標準 .ase 專案封包。");
     } finally {
-        aseUpload.value = ""; // 歸零防卡死
+        aseUpload.value = ""; // 清空，防同檔案無法再次觸發
     }
 });
 
-// 啟動專案
-window.onload = init;
+// 初始化環境執行
+updateLayoutSettings();
