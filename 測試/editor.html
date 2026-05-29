@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>動態圖片專案製作器</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* 補強版面配置，確保整體流暢度 */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            height: calc(100vh - 150px);
+        }
+        .sidebar {
+            width: 280px;
+            background-color: var(--mint-light);
+            border-right: 1px solid var(--choco-light);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .canvas-workspace {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #e0ece6;
+            overflow: auto;
+            position: relative;
+        }
+        #main-canvas {
+            background: #ffffff;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            cursor: move;
+        }
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .form-cell {
+            flex: 1;
+        }
+        .form-cell label {
+            display: block;
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 3px;
+            color: var(--choco-dark);
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-layout">
+    <div class="top-navbar">
+        <h1>動態圖片專案製作器 (V.0.8)</h1>
+        <div class="global-settings" style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+            <div class="setting-item"><label>畫布寬度:</label><input type="number" id="canvas-w" value="800" style="width:70px;"></div>
+            <div class="setting-item"><label>高度:</label><input type="number" id="canvas-h" value="450" style="width:70px;"></div>
+            <div class="setting-item"><label>總時間節點數:</label><input type="number" id="total-nodes" value="50" min="2" max="100" style="width:60px;"></div>
+            <div class="setting-item">
+                <label>循環模式:</label>
+                <select id="loop-type" style="width:150px;">
+                    <option value="forward">順循環 (0-末尾)</option>
+                    <option value="pingpong">來回循環 (Ping-Pong)</option>
+                </select>
+            </div>
+            <div class="project-actions" style="display: flex; gap: 8px;">
+                <button class="btn" id="btn-import-trigger" style="background-color: #fff; color: var(--choco-dark);">匯入專案檔 (.ase)</button>
+                <input type="file" id="ase-upload" accept=".ase" style="display:none;">
+                <button class="btn" id="btn-export" style="background-color: #fff; color: var(--choco-dark);">匯出專案檔 (.ase)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <h3 style="margin-top:0; color:var(--choco-dark);">① 圖層資產管理</h3>
+            <input type="file" id="file-upload" accept="image/*" style="margin-bottom: 10px;">
+            <div id="layer-list" style="flex: 1; overflow-y: auto;">
+                </div>
+        </div>
+
+        <div class="canvas-workspace">
+            <canvas id="main-canvas" width="800" height="450"></canvas>
+        </div>
+
+        <div class="sidebar" id="property-panel" style="display: none; border-left: 1px solid var(--choco-light); border-right: none;">
+            <h3 id="selected-title" style="margin-top:0; color:var(--choco-dark);">圖層屬性</h3>
+            
+            <div class="form-row">
+                <div class="form-cell" style="display: flex; align-items: center; gap: 5px;">
+                    <input type="checkbox" id="prop-is-key" style="width: auto;">
+                    <label for="prop-is-key" style="margin: 0; cursor: pointer;">設為關鍵影格 (Keyframe)</label>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-cell">
+                    <label>位置 X (px)</label>
+                    <input type="number" id="prop-x" value="400">
+                </div>
+                <div class="form-cell">
+                    <label>位置 Y (px)</label>
+                    <input type="number" id="prop-y" value="225">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-cell">
+                    <label>縮放寬度 X</label>
+                    <input type="number" id="prop-scale-x" value="1" step="0.1">
+                </div>
+                <div class="form-cell">
+                    <label>縮放高度 Y</label>
+                    <input type="number" id="prop-scale-y" value="1" step="0.1">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-cell">
+                    <label>旋轉角度 (°)</label>
+                    <input type="number" id="prop-rotate" value="0" min="-360" max="360">
+                </div>
+                <div class="form-cell">
+                    <label>不透明度 (0~1)</label>
+                    <input type="number" id="prop-opacity" value="1" min="0" max="1" step="0.1">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-cell">
+                    <label>② 表情 / 貼圖外觀更換</label>
+                    <select id="prop-texture">
+                        </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-cell">
+                    <label>④ 漸變補間緩動模式 (Easing)</label>
+                    <select id="prop-easing">
+                        <option value="linear">Linear (線性等速)</option>
+                        <option value="easeIn">Ease In (先慢後快)</option>
+                        <option value="easeOut">Ease Out (先快後慢)</option>
+                        <option value="easeInOut">Ease In-Out (雙向緩動)</option>
+                        <option value="bounce">Bounce (物理彈跳回彈)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-cell">
+                    <label>⑤ 時間軸事件標記觸發器</label>
+                    <input type="text" id="cur-event" placeholder="例如: play_sound, fx_fire">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-timeline" style="background-color: var(--choco-dark); color: #fff; padding: 15px; display: flex; align-items: center; gap: 15px; height: 70px;">
+        <div class="timeline-controls" style="display: flex; align-items: center; gap: 10px; width: 100%;">
+            <button class="btn" id="btn-play" style="min-width: 90px;">播放預覽</button>
+            <button class="btn" id="btn-stop" style="background-color: #ffcdd2; color: #b71c1c; min-width: 70px;">停止</button>
+            
+            <div class="timeline-slider-wrapper" style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                <span style="font-size:13px; font-weight:bold; white-space: nowrap;">當前影格節點:</span>
+                <input type="number" id="direct-frame-input" min="0" value="0" style="width: 60px; color: #000;">
+                <input type="range" id="node-slider" min="0" max="49" value="0" style="flex: 1; cursor: pointer;">
+                <span style="font-size:13px; font-weight:bold; min-width:90px; white-space: nowrap;">
+                    影格: <span class="node-idx-lbl">0</span> (<span id=\"time-sec-lbl\">0.0</span> 秒)
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="editor.js"></script>
+</body>
+</html>
