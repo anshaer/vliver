@@ -518,3 +518,5 @@ aseUpload.addEventListener('change', async (e) => {
 
 // 初始化環境執行
 updateLayoutSettings();
+
+}
