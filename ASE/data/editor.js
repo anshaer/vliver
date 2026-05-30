@@ -397,9 +397,16 @@ document.getElementById('btn-export-webm').addEventListener('click', async () =>
     for(let i=0; i<project.totalNodes; i++) queue.push(i);
     if(project.loopType === 'pingpong') { for(let i=project.totalNodes-2; i>=0; i--) queue.push(i); }
 
-    const stream = canvas.captureStream(10);
+    // 🔥 提升畫布擷取率至 30 FPS 確保細節飽和
+    const stream = canvas.captureStream(30);
     let selectedFormat = ['video/webm;codecs=vp9', 'video/webm'].find(f => MediaRecorder.isTypeSupported(f));
-    const recorder = new MediaRecorder(stream, { mimeType: selectedFormat });
+    
+    // 🔥 關鍵修復：手動指定超大流量 videoBitsPerSecond: 15,000,000 (15Mbps) 徹底打破低畫質魔咒
+    const recorder = new MediaRecorder(stream, { 
+        mimeType: selectedFormat,
+        videoBitsPerSecond: 15000000 
+    });
+    
     const chunks = []; recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
 
     const finishPromise = new Promise(r => recorder.onstop = () => r(new Blob(chunks, { type: 'video/webm' })));
