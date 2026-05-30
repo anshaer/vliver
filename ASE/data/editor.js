@@ -13,6 +13,7 @@ let ts = { mode: null, lastX: 0, lastY: 0, initialProps: null, layer: null };
 // 2. DOM 元素節點快取
 const canvas = document.getElementById('main-canvas'), ctx = canvas.getContext('2d');
 const canvasW = document.getElementById('canvas-w'), canvasH = document.getElementById('canvas-h'), totalNodesInput = document.getElementById('total-nodes'), loopTypeSelect = document.getElementById('loop-type');
+const canvasBgType = document.getElementById('canvas-bg-type'); // 綁定新增的底色選單
 const fileUpload = document.getElementById('file-upload'), layerListDiv = document.getElementById('layer-list'), nodeSlider = document.getElementById('node-slider'), directFrameInput = document.getElementById('direct-frame-input');
 const nodeIdxLbls = document.querySelectorAll('.node-idx-lbl'), timeSecLbl = document.getElementById('time-sec-lbl');
 const propertyPanel = document.getElementById('property-panel'), selectedTitle = document.getElementById('selected-title');
@@ -37,6 +38,7 @@ function updateLayoutSettings() {
     drawFrame();
 }
 [canvasW, canvasH, totalNodesInput, loopTypeSelect].forEach(el => el.addEventListener('change', updateLayoutSettings));
+if (canvasBgType) { canvasBgType.addEventListener('change', drawFrame); }
 
 // 4. 素材檔案異步上傳處理
 fileUpload.addEventListener('change', (e) => {
@@ -223,7 +225,20 @@ function computeProps(layer, node) {
 
 // 8. 畫布即時重繪渲染引擎
 function drawFrame() {
+    // A. 乾淨清空畫布
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // B. 🔥 核心修復：依據選擇的底色真實填充畫布像素，徹底解決錄影時半透明邊緣產生白邊/雜邊的壓縮編碼問題
+    const bgMode = canvasBgType ? canvasBgType.value : 'white';
+    if (bgMode === 'white') {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else if (bgMode === 'green') {
+        ctx.fillStyle = '#00ff00'; // 標準高亮去背綠
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } // 如果是 'transparent' 則維持純透明像素底
+
+    // C. 依序繪製各個圖層
     for(let i = project.images.length - 1; i >= 0; i--) {
         const layer = project.images[i];
         const props = computeProps(layer, currentNode); if (!props) continue;
@@ -400,7 +415,7 @@ document.getElementById('btn-export-webm').addEventListener('click', async () =>
     const stream = canvas.captureStream(30);
     let selectedFormat = ['video/webm;codecs=vp9', 'video/webm'].find(f => MediaRecorder.isTypeSupported(f));
     
-    // 🔥 關鍵修復：手動指定大流量 videoBitsPerSecond: 15Mbps 徹底打破低畫質魔咒
+    // 手動指定高位元率流量 15Mbps 徹底打破低畫質魔咒
     const recorder = new MediaRecorder(stream, { 
         mimeType: selectedFormat,
         videoBitsPerSecond: 15000000 
