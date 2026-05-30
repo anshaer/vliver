@@ -420,5 +420,94 @@ document.getElementById('btn-export-webm').addEventListener('click', async () =>
     isRecording = false; btnWebm.textContent = backup; btnWebm.disabled = false; changeCurrentNode(0);
 });
 
+// ==========================================================
+// 13. 核心功能：解開 .ase 專案壓縮包上傳還原
+// ==========================================================
+const btnImport = document.getElementById('btn-import');
+const aseUpload = document.getElementById('ase-upload');
+
+if (btnImport && aseUpload) {
+    btnImport.addEventListener('click', () => aseUpload.click());
+}
+
+aseUpload.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+        const zip = await JSZip.loadAsync(file);
+        const configFile = zip.file("config.json");
+        if (!configFile) {
+            alert("讀取失敗：找不到核心專案設定檔 config.json！");
+            return;
+        }
+
+        const configText = await configFile.async("text");
+        const importedConfig = JSON.parse(configText);
+
+        // A. 填入環境全域變數設定並同步 UI 數值
+        canvasW.value = importedConfig.width || 800;
+        canvasH.value = importedConfig.height || 450;
+        totalNodesInput.value = importedConfig.totalNodes || 50;
+        loopTypeSelect.value = importedConfig.loopType || 'forward';
+
+        updateLayoutSettings();
+
+        // B. 初始化當前專案緩存，避免髒資料殘留
+        loadedFiles = {};
+        imageObjects = {};
+        selectedImageId = null;
+        propertyPanel.style.display = 'none';
+
+        // C. 解析圖層，並對 images/ 資料夾下的二進位原始圖檔執行異步重載
+        const imagePromises = [];
+        const importedImages = importedConfig.images || [];
+
+        for (let layer of importedImages) {
+            // 還原匯出時被濾除的執行期專用欄位與隨機 ID
+            layer.rawName = layer.filename.replace("images/", "");
+            layer.id = "layer_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+            if (layer.lockRatio === undefined) layer.lockRatio = true;
+
+            const zipImgFile = zip.file(layer.filename) || zip.file("images/" + layer.rawName);
+            if (zipImgFile) {
+                const promise = zipImgFile.async("blob").then((blob) => {
+                    const imgFile = new File([blob], layer.rawName, { type: blob.type });
+                    loadedFiles[layer.rawName] = imgFile;
+
+                    return new Promise((resolve) => {
+                        const img = new Image();
+                        img.src = URL.createObjectURL(imgFile);
+                        img.onload = () => {
+                            imageObjects[layer.rawName] = img;
+                            layer.aspect = img.width / img.height; // 重算寬高比，完全解決上傳圖片後鎖定等比例失效的問題
+                            resolve();
+                        };
+                        img.onerror = () => resolve();
+                    });
+                });
+                imagePromises.push(promise);
+            }
+        }
+
+        // 等待所有專案圖片完全解壓與加載完畢
+        await Promise.all(imagePromises);
+
+        // D. 套用圖層資料並全面刷新界面
+        project.images = importedImages;
+        updateTextureDropdowns();
+        renderLayerUI();
+        changeCurrentNode(0);
+
+        alert("🎉 .ase 專案檔已成功匯入！所有影格軌道與素材已完全還原。");
+
+    } catch (err) {
+        console.error("Import Error: ", err);
+        alert("匯入失敗！請確認該檔案是否為本系統導出的標準 .ase 專案封包。");
+    } finally {
+        aseUpload.value = ""; // 清空，防同檔案無法再次觸發
+    }
+});
+
 // 初始化環境執行
 updateLayoutSettings();
