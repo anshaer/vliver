@@ -184,7 +184,7 @@ function changeCurrentNode(nodeValue) {
 nodeSlider.addEventListener('input', (e) => changeCurrentNode(e.target.value));
 directFrameInput.addEventListener('input', (e) => changeCurrentNode(e.target.value));
 
-// 7. ④ 功能：五大進階緩動數學曲線插值解算核心
+// 7. 進階緩動數學曲線插值解算核心
 function computeProps(layer, node) {
     if (node < layer.startNode || node > layer.endNode) return null;
     let points = [{ node: layer.startNode, props: layer.init }];
@@ -264,7 +264,7 @@ function drawFrame() {
             ctx.beginPath(); ctx.moveTo(rotX, rotY); ctx.lineTo(rotX, rotY - 25); ctx.stroke();
             ctx.beginPath(); ctx.arc(rotX, rotY - 25, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
             
-            // ① 功能：繪製自訂中心紅色原點把手位置
+            // 繪製中心紅色原點把手位置
             ctx.fillStyle = '#ff0000'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI*2); ctx.fill();
             ctx.restore();
         }
@@ -282,7 +282,7 @@ function getRotatedLocalCoords(layer, mx, my) {
 canvas.addEventListener('mousedown', (e) => {
     if(isPlaying || isRecording) return;
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left, my = e.top || (e.clientY - rect.top); // 確保座標精準
+    const mx = e.clientX - rect.left, my = e.top || (e.clientY - rect.top);
 
     let hitFound = false;
     for(let i = 0; i < project.images.length; i++) {
@@ -357,7 +357,6 @@ document.getElementById('btn-play').addEventListener('click', () => {
         nodeSlider.value = currentNode; directFrameInput.value = currentNode;
         nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode); timeSecLbl.textContent = (currentNode * 0.1).toFixed(1);
         
-        // ⑤ 觸發事件回報印出於控制台
         project.images.forEach(l => {
             const p = computeProps(l, currentNode);
             if(p && p.event && currentNode === parseInt(nodeSlider.value)) console.log(`[製作器預覽事件] ${l.rawName} -> 觸發: ${p.event}`);
@@ -397,11 +396,11 @@ document.getElementById('btn-export-webm').addEventListener('click', async () =>
     for(let i=0; i<project.totalNodes; i++) queue.push(i);
     if(project.loopType === 'pingpong') { for(let i=project.totalNodes-2; i>=0; i--) queue.push(i); }
 
-    // 🔥 提升畫布擷取率至 30 FPS 確保細節飽和
+    // 提升畫布擷取率至 30 FPS 確保細節飽和
     const stream = canvas.captureStream(30);
     let selectedFormat = ['video/webm;codecs=vp9', 'video/webm'].find(f => MediaRecorder.isTypeSupported(f));
     
-    // 🔥 關鍵修復：手動指定超大流量 videoBitsPerSecond: 15,000,000 (15Mbps) 徹底打破低畫質魔咒
+    // 🔥 關鍵修復：手動指定大流量 videoBitsPerSecond: 15Mbps 徹底打破低畫質魔咒
     const recorder = new MediaRecorder(stream, { 
         mimeType: selectedFormat,
         videoBitsPerSecond: 15000000 
@@ -427,10 +426,8 @@ document.getElementById('btn-export-webm').addEventListener('click', async () =>
     isRecording = false; btnWebm.textContent = backup; btnWebm.disabled = false; changeCurrentNode(0);
 });
 
-// ==========================================================
 // 13. 核心功能：解開 .ase 專案壓縮包上傳還原
-// ==========================================================
-const btnImport = document.getElementById('btn-import');
+const btnImport = document.getElementById('btn-import') || document.getElementById('btn-import-trigger');
 const aseUpload = document.getElementById('ase-upload');
 
 if (btnImport && aseUpload) {
@@ -471,7 +468,6 @@ aseUpload.addEventListener('change', async (e) => {
         const importedImages = importedConfig.images || [];
 
         for (let layer of importedImages) {
-            // 還原匯出時被濾除的執行期專用欄位與隨機 ID
             layer.rawName = layer.filename.replace("images/", "");
             layer.id = "layer_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
             if (layer.lockRatio === undefined) layer.lockRatio = true;
@@ -487,7 +483,7 @@ aseUpload.addEventListener('change', async (e) => {
                         img.src = URL.createObjectURL(imgFile);
                         img.onload = () => {
                             imageObjects[layer.rawName] = img;
-                            layer.aspect = img.width / img.height; // 重算寬高比，完全解決上傳圖片後鎖定等比例失效的問題
+                            layer.aspect = img.width / img.height; 
                             resolve();
                         };
                         img.onerror = () => resolve();
@@ -497,7 +493,6 @@ aseUpload.addEventListener('change', async (e) => {
             }
         }
 
-        // 等待所有專案圖片完全解壓與加載完畢
         await Promise.all(imagePromises);
 
         // D. 套用圖層資料並全面刷新界面
@@ -512,11 +507,9 @@ aseUpload.addEventListener('change', async (e) => {
         console.error("Import Error: ", err);
         alert("匯入失敗！請確認該檔案是否為本系統導出的標準 .ase 專案封包。");
     } finally {
-        aseUpload.value = ""; // 清空，防同檔案無法再次觸發
+        aseUpload.value = ""; 
     }
 });
 
 // 初始化環境執行
 updateLayoutSettings();
-
-}
