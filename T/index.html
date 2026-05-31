@@ -3,87 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>動態圖片專案製作器</title>
+    <title>動態圖片專案製作器 (含配樂版)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link rel="stylesheet" href="style.css">
-    
-    <style>
-        .top-navbar {
-            padding: 8px 20px !important;
-            gap: 12px !important;
-            flex-wrap: wrap;
-        }
-        .global-settings {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px !important;
-            align-items: center;
-        }
-        .setting-item {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            white-space: nowrap;
-        }
-        /* 關鍵修正：確保中間工作區在頂部欄變高時能自動縮放，不把底部時間軸擠出視窗 */
-        .main-workspace {
-            flex: 1 !important;
-            min-height: 0 !important; 
-        }
-        /* 修正底部拉桿與長數字輸入框的排版 */
-        .timeline-slider-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 10px !important;
-            flex: 1;
-        }
-        #direct-frame-input {
-            width: 75px !important; /* 放寬以容納 4 位數 */
-            text-align: center;
-            padding: 4px;
-        }
-        .timeline-slider {
-            flex: 1;
-        }
-        /* 固定時間標籤寬度，防止 599.9 秒等長文字造成抖動或排版跳行 */
-        .timeline-slider-wrapper > span:last-child {
-            min-width: 90px !important;
-            text-align: right;
-            display: inline-block;
-        }
-    </style>
 </head>
 <body>
 
 <div class="app-layout">
     <div class="top-navbar">
-        <h1>動態圖片專案製作器 (V.1.2.1-20260530)</h1>
+        <h1>動態圖片專案製作器 (V.1.3.0-AudioSync)</h1>
         <div class="global-settings">
-            <div class="setting-item"><label>畫布寬度:</label><input type="number" id="canvas-w" value="800" style="width:65px;"></div>
-            <div class="setting-item"><label>高度:</label><input type="number" id="canvas-h" value="450" style="width:65px;"></div>
-            <div class="setting-item"><label>總時間節點數:</label><input type="number" id="total-nodes" value="50" min="2" max="6000" style="width:75px;"></div>
+            <div class="setting-item"><label>畫布寬度:</label><input type="number" id="canvas-w" value="800"></div>
+            <div class="setting-item"><label>高度:</label><input type="number" id="canvas-h" value="450"></div>
+            <div class="setting-item"><label>總時間節點數:</label><input type="number" id="total-nodes" value="50" min="2" max="6000"></div>
             <div class="setting-item">
                 <label>循環模式:</label>
-                <select id="loop-type" style="width:110px;">
+                <select id="loop-type">
                     <option value="forward">順循環 (正向)</option>
                     <option value="pingpong">反循環 (來回)</option>
                 </select>
             </div>
             <div class="setting-item">
                 <label>輸出底色:</label>
-                <select id="canvas-bg-type" style="width:110px;">
+                <select id="canvas-bg-type">
                     <option value="white" selected>白色底 (防白邊)</option>
                     <option value="green">綠幕底 (去背)</option>
                     <option value="transparent">純透明</option>
                 </select>
             </div>
             
-            <button class="btn" id="btn-import" style="background-color: #fff; color: var(--choco-dark);">匯入專案 (.ase)</button>
+            <button class="btn btn-white" id="btn-import">匯入專案 (.ase)</button>
             <input type="file" id="ase-upload" accept=".ase" style="display: none;">
             
-            <button class="btn" id="btn-export" style="background-color: #fff; color: var(--choco-dark);">匯出專案 (.ase)</button>
-            <button class="btn" id="btn-export-webm">匯出 WebM</button>
-            <button class="btn" id="btn-export-mp4">匯出 MP4</button>
+            <button class="btn btn-white" id="btn-export">匯出專案 (.ase)</button>
+            <button class="btn" id="btn-export-webm">匯出 WebM 影片</button>
+            <button class="btn" id="btn-export-mp4">匯出 MP4 影片</button>
         </div>
     </div>
 
@@ -91,7 +45,12 @@
         <div class="sidebar-left">
             <div class="section-title">素材匯入 (JPG/PNG/WebP)</div>
             <input type="file" id="file-upload" accept=".jpg,.jpeg,.png,.webp" multiple style="margin-bottom:15px;">
-            <div class="section-title">圖層管理 (最上方在最前層)</div>
+            
+            <div class="section-title">音訊匯入 (專案背景音樂 BGM)</div>
+            <input type="file" id="audio-upload" accept=".mp3,.wav,.ogg,.m4a" style="margin-bottom:8px;">
+            <div id="audio-status" class="audio-status-lbl">尚未載入音訊軌</div>
+
+            <div class="section-title" style="margin-top:15px;">圖層管理 (最上方在最前層)</div>
             <div id="layer-list" style="flex:1;"></div>
         </div>
 
@@ -105,7 +64,7 @@
             <div class="section-title" id="selected-title">圖層屬性編輯</div>
             
             <div class="panel-block">
-                <div style="font-weight:bold; font-size:12px; margin-bottom:5px;">時間生命週期範圍</div>
+                <div class="block-sub-title">時間生命週期範圍</div>
                 <div class="form-row">
                     <div class="form-cell"><label>出現節點</label><input type="number" id="prop-start" min="0" value="0"></div>
                     <div class="form-cell"><label>消失節點</label><input type="number" id="prop-end" min="0" value="49"></div>
@@ -113,7 +72,7 @@
             </div>
 
             <div class="panel-block">
-                <div style="font-weight:bold; font-size:12px; margin-bottom:5px;">① 自訂圖層錨點 (範圍: 0.0 ~ 1.0)</div>
+                <div class="block-sub-title">① 自訂圖層錨點 (範圍: 0.0 ~ 1.0)</div>
                 <div class="form-row">
                     <div class="form-cell"><label>錨點 X</label><input type="number" id="pivot-x" min="0" max="1" step="0.1" value="0.5"></div>
                     <div class="form-cell"><label>錨點 Y</label><input type="number" id="pivot-y" min="0" max="1" step="0.1" value="0.5"></div>
@@ -124,9 +83,9 @@
                 <input type="checkbox" id="prop-lock-ratio" checked> 鎖定圖片等比例縮放
             </div>
 
-            <div class="panel-block" style="border: 2px solid var(--mint-hover); background: #ffffff;">
-                <div style="font-weight:bold; font-size:13px; color: var(--choco-dark); margin-bottom:8px;">
-                    影格 <span class="node-idx-lbl" style="color:red;font-size:15px;">0</span> 狀態與進階設定
+            <div class="panel-block highlight-block">
+                <div class="highlight-title">
+                    影格 <span class="node-idx-lbl">0</span> 狀態與進階設定
                 </div>
                 
                 <div class="form-row">
@@ -142,7 +101,7 @@
                     <div class="form-cell"><label>不透明度 (0~1)</label><input type="number" id="cur-op" min="0" max="1" step="0.1"></div>
                 </div>
 
-                <div class="form-row" style="margin-top:10px; padding-top:10px; border-top:1px dashed #ccc;">
+                <div class="form-row divider-row">
                     <div class="form-cell">
                         <label>② 表情/貼圖更換</label>
                         <select id="cur-texture"><option value="">保持原圖</option></select>
@@ -155,7 +114,7 @@
                     </div>
                 </div>
 
-                <div class="form-row" style="margin-top:10px; padding-top:10px; border-top:1px dashed #ccc;">
+                <div class="form-row divider-row">
                     <div class="form-cell">
                         <label>④ 緩動曲線 (延伸至下一格)</label>
                         <select id="cur-easing">
@@ -182,10 +141,10 @@
             <button class="btn btn-action" id="btn-play">播放預覽</button>
             <button class="btn btn-action btn-danger" id="btn-stop">停止</button>
             <div class="timeline-slider-wrapper">
-                <span style="font-size:13px; font-weight:bold; white-space:nowrap;">當前影格節點:</span>
+                <span class="timeline-lbl">當前影格節點:</span>
                 <input type="number" id="direct-frame-input" min="0" value="0">
                 <input type="range" id="node-slider" class="timeline-slider" min="0" max="49" value="0">
-                <span style="font-size:13px; font-weight:bold;"><span id="time-sec-lbl">0.0</span> 秒</span>
+                <span class="time-sec-box"><span id="time-sec-lbl">0.0</span> 秒</span>
             </div>
         </div>
     </div>
