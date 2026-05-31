@@ -40,7 +40,7 @@ function updateLayoutSettings() {
     drawFrame();
 }
 
-// 🔥 修正點：將設定數值由 'change' 改為 'input' 實現無縫即時更新，解決極值劇烈變動卡死拉桿問題
+// 監聽數值輸入事件，採用 input 實時刷新避免拖曳卡死
 [canvasW, canvasH, totalNodesInput].forEach(el => el.addEventListener('input', updateLayoutSettings));
 loopTypeSelect.addEventListener('change', updateLayoutSettings);
 if (canvasBgType) { canvasBgType.addEventListener('change', drawFrame); }
