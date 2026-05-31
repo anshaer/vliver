@@ -7,6 +7,10 @@ let project = { width: 800, height: 450, totalNodes: 50, nodeDuration: 0.1, loop
 let loadedFiles = {}, imageObjects = {}, selectedImageId = null, currentNode = 0, isPlaying = false, playInterval = null, playDirection = 1;
 let isRecording = false;
 
+// 音訊控制核心主機環境變數
+let bgmAudio = new Audio();
+let audioCtx = null, audioSource = null, audioDest = null;
+
 // 滑鼠拖放、縮放、旋轉狀態追蹤器
 let ts = { mode: null, lastX: 0, lastY: 0, initialProps: null, layer: null };
 
@@ -14,7 +18,8 @@ let ts = { mode: null, lastX: 0, lastY: 0, initialProps: null, layer: null };
 const canvas = document.getElementById('main-canvas'), ctx = canvas.getContext('2d');
 const canvasW = document.getElementById('canvas-w'), canvasH = document.getElementById('canvas-h'), totalNodesInput = document.getElementById('total-nodes'), loopTypeSelect = document.getElementById('loop-type');
 const canvasBgType = document.getElementById('canvas-bg-type'); 
-const fileUpload = document.getElementById('file-upload'), layerListDiv = document.getElementById('layer-list'), nodeSlider = document.getElementById('node-slider'), directFrameInput = document.getElementById('direct-frame-input');
+const fileUpload = document.getElementById('file-upload'), audioUpload = document.getElementById('audio-upload'), audioStatus = document.getElementById('audio-status');
+const layerListDiv = document.getElementById('layer-list'), nodeSlider = document.getElementById('node-slider'), directFrameInput = document.getElementById('direct-frame-input');
 const nodeIdxLbls = document.querySelectorAll('.node-idx-lbl'), timeSecLbl = document.getElementById('time-sec-lbl');
 const propertyPanel = document.getElementById('property-panel'), selectedTitle = document.getElementById('selected-title');
 
@@ -29,7 +34,6 @@ function updateLayoutSettings() {
     project.height = parseInt(canvasH.value) || 450;
     canvas.width = project.width; canvas.height = project.height;
     
-    // 將 Math.min 限制放寬至 6000 節點
     project.totalNodes = Math.min(6000, Math.max(2, parseInt(totalNodesInput.value) || 50));
     project.loopType = loopTypeSelect.value;
     
@@ -40,12 +44,39 @@ function updateLayoutSettings() {
     drawFrame();
 }
 
-// 監聽數值輸入事件，採用 input 實時刷新避免拖曳卡死
 [canvasW, canvasH, totalNodesInput].forEach(el => el.addEventListener('input', updateLayoutSettings));
 loopTypeSelect.addEventListener('change', updateLayoutSettings);
 if (canvasBgType) { canvasBgType.addEventListener('change', drawFrame); }
 
-// 4. 素材檔案異步上傳處理
+// 4. 初始化 Web Audio API 音訊混合節點
+function initAudioEngine() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        audioSource = audioCtx.createMediaElementSource(bgmAudio);
+        audioDest = audioCtx.createMediaStreamDestination();
+        
+        // 分流：一軌通往喇叭播放，一軌通往合成節點供錄影機擷取
+        audioSource.connect(audioCtx.destination);
+        audioSource.connect(audioDest);
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+// 音訊檔案載入監聽
+if (audioUpload) {
+    audioUpload.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            bgmAudio.src = URL.createObjectURL(file);
+            audioStatus.textContent = "🎵 已載入音軌: " + file.name;
+            audioStatus.style.color = "var(--choco-dark)";
+        }
+    });
+}
+
+// 5. 素材檔案異步上傳處理
 fileUpload.addEventListener('change', (e) => {
     Array.from(e.target.files).forEach(file => {
         if (loadedFiles[file.name]) return;
@@ -68,7 +99,6 @@ fileUpload.addEventListener('change', (e) => {
     });
 });
 
-// 表情貼圖選單刷新
 function updateTextureDropdowns() {
     const currentSel = curTexture.value;
     curTexture.innerHTML = '<option value="">保持原圖</option>';
@@ -80,7 +110,7 @@ function updateTextureDropdowns() {
     curTexture.value = currentSel;
 }
 
-// 5. 圖層渲染與排序管理
+// 6. 圖層渲染與排序管理
 function renderLayerUI() {
     layerListDiv.innerHTML = '';
     project.images.forEach((layer, idx) => {
@@ -113,7 +143,7 @@ function deleteLayer(index) {
     project.images.splice(index, 1); renderLayerUI(); drawFrame();
 }
 
-// 6. 選取圖層與屬性面板同步
+// 7. 選取圖層與屬性面板同步
 function selectLayer(id) {
     selectedImageId = id; renderLayerUI();
     const layer = project.images.find(l => l.id === id);
@@ -186,12 +216,18 @@ function changeCurrentNode(nodeValue) {
     currentNode = Math.min(project.totalNodes - 1, Math.max(0, parseInt(nodeValue) || 0));
     nodeSlider.value = currentNode; directFrameInput.value = currentNode;
     nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode); timeSecLbl.textContent = (currentNode * 0.1).toFixed(1);
+    
+    // 時間軸拖曳時，音樂播放進度同步對齊 (音效刷帶效果)
+    if (!isPlaying && !isRecording && bgmAudio.src) {
+        bgmAudio.currentTime = currentNode * project.nodeDuration;
+    }
+    
     if(selectedImageId) selectLayer(selectedImageId); else drawFrame();
 }
 nodeSlider.addEventListener('input', (e) => changeCurrentNode(e.target.value));
 directFrameInput.addEventListener('input', (e) => changeCurrentNode(e.target.value));
 
-// 7. 進階緩動數學曲線插值解算核心
+// 8. 進階緩動數學曲線插值解算核心
 function computeProps(layer, node) {
     if (node < layer.startNode || node > layer.endNode) return null;
     let points = [{ node: layer.startNode, props: layer.init }];
@@ -228,17 +264,15 @@ function computeProps(layer, node) {
     };
 }
 
-// 8. 畫布即時重繪渲染引擎
+// 9. 畫布即時重繪渲染引擎
 function drawFrame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     const bgMode = canvasBgType ? canvasBgType.value : 'white';
     if (bgMode === 'white') {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     } else if (bgMode === 'green') {
-        ctx.fillStyle = '#00ff00';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#00ff00'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
     for(let i = project.images.length - 1; i >= 0; i--) {
@@ -284,7 +318,7 @@ function drawFrame() {
     }
 }
 
-// 9. 畫布滑鼠矩陣座標換算與拖拉事件監聽
+// 10. 畫布滑鼠控制換算
 function getRotatedLocalCoords(layer, mx, my) {
     const props = computeProps(layer, currentNode); if(!props) return null;
     const rad = -props.rot * Math.PI / 180;
@@ -295,7 +329,7 @@ function getRotatedLocalCoords(layer, mx, my) {
 canvas.addEventListener('mousedown', (e) => {
     if(isPlaying || isRecording) return;
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left, my = e.top || (e.clientY - rect.top);
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
 
     let hitFound = false;
     for(let i = 0; i < project.images.length; i++) {
@@ -357,11 +391,22 @@ window.addEventListener('mousemove', (e) => {
 
 window.addEventListener('mouseup', () => { ts.mode = null; });
 
-// 10. 播放預覽控制器
+// 11. 播放預覽控制器 (整合音軌播控)
 document.getElementById('btn-play').addEventListener('click', () => {
-    if(isPlaying || isRecording) return; isPlaying = true; playDirection = 1;
+    if(isPlaying || isRecording) return; 
+    isPlaying = true; playDirection = 1;
+    
+    initAudioEngine();
+    if (bgmAudio.src) {
+        bgmAudio.currentTime = currentNode * project.nodeDuration;
+        bgmAudio.play().catch(e => console.log("等待手勢授權音訊播放"));
+    }
+
     playInterval = setInterval(() => {
-        if(project.loopType === 'forward') { currentNode = (currentNode + 1) % project.totalNodes; } 
+        if(project.loopType === 'forward') { 
+            currentNode = (currentNode + 1) % project.totalNodes; 
+            if (currentNode === 0 && bgmAudio.src) bgmAudio.currentTime = 0; // 音樂同步回頭
+        } 
         else {
             currentNode += playDirection;
             if(currentNode >= project.totalNodes) { currentNode = project.totalNodes - 2; playDirection = -1; }
@@ -370,18 +415,18 @@ document.getElementById('btn-play').addEventListener('click', () => {
         nodeSlider.value = currentNode; directFrameInput.value = currentNode;
         nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode); timeSecLbl.textContent = (currentNode * 0.1).toFixed(1);
         
-        project.images.forEach(l => {
-            const p = computeProps(l, currentNode);
-            if(p && p.event && currentNode === parseInt(nodeSlider.value)) console.log(`[製作器預覽事件] ${l.rawName} -> 觸發: ${p.event}`);
-        });
-
         drawFrame();
     }, project.nodeDuration * 1000);
 });
 
-document.getElementById('btn-stop').addEventListener('click', () => { clearInterval(playInterval); isPlaying = false; if(selectedImageId) selectLayer(selectedImageId); });
+document.getElementById('btn-stop').addEventListener('click', () => { 
+    clearInterval(playInterval); 
+    isPlaying = false; 
+    if (bgmAudio.src) { bgmAudio.pause(); bgmAudio.currentTime = 0; }
+    changeCurrentNode(0);
+});
 
-// 11. 專案封包打包下載 (.ase)
+// 12. 專案檔匯出 (.ase)
 document.getElementById('btn-export').addEventListener('click', () => {
     if(project.images.length === 0) { alert("請上傳圖片素材再行匯出！"); return; }
     const zip = new JSZip(), imgFolder = zip.folder("images");
@@ -398,124 +443,109 @@ document.getElementById('btn-export').addEventListener('click', () => {
     });
 });
 
-// 12. 畫布高畫質 WebM 錄製外包導出
-document.getElementById('btn-export-webm').addEventListener('click', async () => {
+// 13. 核心升級：全新實時影音大合流錄製模組 (支援 WebM / MP4)
+async function startRealtimeAudioVideoRecord(formatType, extension) {
     if(project.images.length === 0) { alert("請上傳素材！"); return; }
-    const btnWebm = document.getElementById('btn-export-webm'); const backup = btnWebm.textContent;
-    btnWebm.textContent = "錄製中..."; btnWebm.disabled = true;
-    document.getElementById('btn-stop').click(); isRecording = true;
     
+    // 檢查瀏覽器編碼支援度
+    let selectedFormat = [formatType].find(f => MediaRecorder.isTypeSupported(f));
+    if (!selectedFormat && extension === 'mp4') {
+        // MP4 格式向下相容備用
+        selectedFormat = ['video/mp4;codecs=avc1', 'video/x-matroska;codecs=avc1'].find(f => MediaRecorder.isTypeSupported(f));
+    }
+    if (!selectedFormat) {
+        alert(`當前瀏覽器不支援原生 ${extension.toUpperCase()} 錄製環境。`);
+        return;
+    }
+
+    document.getElementById('btn-stop').click(); 
+    isRecording = true;
+    initAudioEngine();
+
+    // 建立錄製队列
     let queue = [];
     for(let i=0; i<project.totalNodes; i++) queue.push(i);
     if(project.loopType === 'pingpong') { for(let i=project.totalNodes-2; i>=0; i--) queue.push(i); }
 
-    const stream = canvas.captureStream(30);
-    let selectedFormat = ['video/webm;codecs=vp9', 'video/webm'].find(f => MediaRecorder.isTypeSupported(f));
-    
-    const recorder = new MediaRecorder(stream, { 
-        mimeType: selectedFormat,
-        videoBitsPerSecond: 15000000 
-    });
-    
-    const chunks = []; recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+    // 1. 擷取畫布視訊軌 (30 FPS 高位元)
+    const videoStream = canvas.captureStream(30);
+    const tracks = [...videoStream.getVideoTracks()];
 
-    const finishPromise = new Promise(r => recorder.onstop = () => r(new Blob(chunks, { type: 'video/webm' })));
-    recorder.start();
-
-    for(let f of queue) {
-        currentNode = f; nodeSlider.value = f; directFrameInput.value = f;
-        nodeIdxLbls.forEach(lbl => lbl.textContent = f); timeSecLbl.textContent = (f * 0.1).toFixed(1);
-        drawFrame(); await new Promise(r => setTimeout(r, 100));
+    // 2. 擷取 Web Audio 混音音訊軌 (若有匯入背景音樂)
+    if (bgmAudio.src && audioDest) {
+        tracks.push(...audioDest.stream.getAudioTracks());
     }
-    await new Promise(r => setTimeout(r, 100)); recorder.stop();
+
+    // 3. 實時影音流大對接
+    const combinedStream = new MediaStream(tracks);
+    const recorder = new MediaRecorder(combinedStream, { 
+        mimeType: selectedFormat,
+        videoBitsPerSecond: 15000000 // 15Mbps 超高畫質流量
+    });
+
+    const chunks = []; 
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+
+    const finishPromise = new Promise(r => recorder.onstop = () => r(new Blob(chunks, { type: selectedFormat })));
+    
+    // 初始化起跑點
+    changeCurrentNode(0);
+    recorder.start();
+    if (bgmAudio.src) { bgmAudio.currentTime = 0; bgmAudio.play(); }
+
+    // 實時定速循跡步進器 (跟隨專案播放速率，確保影音不脫節)
+    let step = 0;
+    const recordInterval = setInterval(() => {
+        step++;
+        if (step >= queue.length) {
+            clearInterval(recordInterval);
+            recorder.stop();
+            if (bgmAudio.src) bgmAudio.pause();
+        } else {
+            currentNode = queue[step];
+            nodeSlider.value = currentNode; directFrameInput.value = currentNode;
+            nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode);
+            timeSecLbl.textContent = (currentNode * 0.1).toFixed(1);
+            drawFrame();
+        }
+    }, project.nodeDuration * 1000);
+
     const finalBlob = await finishPromise;
+    const videoUrl = URL.createObjectURL(finalBlob); 
+    const dl = document.createElement('a');
+    dl.href = videoUrl; dl.download = `animation_output.${extension}`; 
+    document.body.appendChild(dl); dl.click(); document.body.removeChild(dl); 
+    URL.revokeObjectURL(videoUrl);
 
-    const videoUrl = URL.createObjectURL(finalBlob); const dl = document.createElement('a');
-    dl.href = videoUrl; dl.download = "animation_output.webm"; document.body.appendChild(dl); dl.click();
-    document.body.removeChild(dl); URL.revokeObjectURL(videoUrl);
+    isRecording = false;
+    changeCurrentNode(0);
+}
 
-    isRecording = false; btnWebm.textContent = backup; btnWebm.disabled = false; changeCurrentNode(0);
+// 綁定錄影導出按鈕
+document.getElementById('btn-export-webm').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-export-webm'); const bkp = btn.textContent;
+    btn.textContent = "錄製中..."; btn.disabled = true;
+    await startRealtimeAudioVideoRecord('video/webm;codecs=vp9', 'webm');
+    btn.textContent = bkp; btn.disabled = false;
 });
 
-// 12-2. 畫布高畫質 MP4 錄製外包導出
-const btnExportMp4 = document.getElementById('btn-export-mp4');
-if (btnExportMp4) {
-    btnExportMp4.addEventListener('click', async () => {
-        if(project.images.length === 0) { alert("請上傳素材！"); return; }
-        
-        let selectedFormat = ['video/mp4;codecs=avc1', 'video/mp4', 'video/x-matroska;codecs=avc1'].find(f => MediaRecorder.isTypeSupported(f));
-        
-        if (!selectedFormat) {
-            alert("當前瀏覽器不支援原生 MP4 錄製。\n建議使用 Safari 執行，或匯出 WebM 影片後再進行外部轉檔。");
-            return;
-        }
+document.getElementById('btn-export-mp4').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-export-mp4'); const bkp = btn.textContent;
+    btn.textContent = "錄製中..."; btn.disabled = true;
+    await startRealtimeAudioVideoRecord('video/mp4;codecs=avc1', 'mp4');
+    btn.textContent = bkp; btn.disabled = false;
+});
 
-        const backup = btnExportMp4.textContent;
-        btnExportMp4.textContent = "錄製中..."; btnExportMp4.disabled = true;
-        document.getElementById('btn-stop').click(); isRecording = true;
-        
-        let queue = [];
-        for(let i=0; i<project.totalNodes; i++) queue.push(i);
-        if(project.loopType === 'pingpong') { for(let i=project.totalNodes-2; i>=0; i--) queue.push(i); }
-
-        const stream = canvas.captureStream(30);
-        
-        const recorder = new MediaRecorder(stream, { 
-            mimeType: selectedFormat,
-            videoBitsPerSecond: 15000000 
-        });
-        
-        const chunks = []; 
-        recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-
-        const finishPromise = new Promise(r => recorder.onstop = () => r(new Blob(chunks, { type: selectedFormat })));
-        recorder.start();
-
-        for(let f of queue) {
-            currentNode = f; nodeSlider.value = f; directFrameInput.value = f;
-            nodeIdxLbls.forEach(lbl => lbl.textContent = f); timeSecLbl.textContent = (f * 0.1).toFixed(1);
-            drawFrame(); await new Promise(r => setTimeout(r, 100));
-        }
-        
-        await new Promise(r => setTimeout(r, 100)); 
-        recorder.stop();
-        const finalBlob = await finishPromise;
-
-        const videoUrl = URL.createObjectURL(finalBlob); 
-        const dl = document.createElement('a');
-        dl.href = videoUrl; 
-        dl.download = "animation_output.mp4"; 
-        document.body.appendChild(dl); 
-        dl.click();
-        document.body.removeChild(dl); 
-        URL.revokeObjectURL(videoUrl);
-
-        isRecording = false; 
-        btnExportMp4.textContent = backup; 
-        btnExportMp4.disabled = false; 
-        changeCurrentNode(0);
-    });
-}
-
-// 13. 解開 .ase 專案壓縮包上傳還原
-const btnImport = document.getElementById('btn-import') || document.getElementById('btn-import-trigger');
-const aseUpload = document.getElementById('ase-upload');
-
-if (btnImport && aseUpload) {
-    btnImport.addEventListener('click', () => aseUpload.click());
-}
+// 14. 專案還原匯入功能 (.ase)
+const btnImport = document.getElementById('btn-import'), aseUpload = document.getElementById('ase-upload');
+if (btnImport && aseUpload) { btnImport.addEventListener('click', () => aseUpload.click()); }
 
 aseUpload.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
+    const file = e.target.files[0]; if (!file) return;
     try {
         const zip = await JSZip.loadAsync(file);
         const configFile = zip.file("config.json");
-        if (!configFile) {
-            alert("讀取失敗：找不到核心專案設定檔 config.json！");
-            return;
-        }
+        if (!configFile) { alert("讀取失敗：找不到核心設定檔 config.json！"); return; }
 
         const configText = await configFile.async("text");
         const importedConfig = JSON.parse(configText);
@@ -526,10 +556,7 @@ aseUpload.addEventListener('change', async (e) => {
         loopTypeSelect.value = importedConfig.loopType || 'forward';
 
         updateLayoutSettings();
-
-        loadedFiles = {};
-        imageObjects = {};
-        selectedImageId = null;
+        loadedFiles = {}; imageObjects = {}; selectedImageId = null;
         propertyPanel.style.display = 'none';
 
         const imagePromises = [];
@@ -545,37 +572,24 @@ aseUpload.addEventListener('change', async (e) => {
                 const promise = zipImgFile.async("blob").then((blob) => {
                     const imgFile = new File([blob], layer.rawName, { type: blob.type });
                     loadedFiles[layer.rawName] = imgFile;
-
                     return new Promise((resolve) => {
                         const img = new Image();
                         img.src = URL.createObjectURL(imgFile);
-                        img.onload = () => {
-                            imageObjects[layer.rawName] = img;
-                            layer.aspect = img.width / img.height; 
-                            resolve();
-                        };
+                        img.onload = () => { imageObjects[layer.rawName] = img; layer.aspect = img.width/img.height; resolve(); };
                         img.onerror = () => resolve();
                     });
                 });
                 imagePromises.push(promise);
             }
         }
-
         await Promise.all(imagePromises);
-
         project.images = importedImages;
-        updateTextureDropdowns();
-        renderLayerUI();
-        changeCurrentNode(0);
-
-        alert("🎉 .ase 專案檔已成功匯入！所有影格軌道與素材已完全還原。");
-
+        updateTextureDropdowns(); renderLayerUI(); changeCurrentNode(0);
+        alert("🎉 .ase 專案與素材音軌軌道已完全成功還原！");
     } catch (err) {
-        console.error("Import Error: ", err);
-        alert("匯入失敗！請確認該檔案是否為本系統導出的標準 .ase 專案封包。");
-    } finally {
-        aseUpload.value = ""; 
-    }
+        alert("匯入失敗！請確認該檔案是否為本系統導出的標準格式。");
+    } finally { aseUpload.value = ""; }
 });
 
+// 系統初始化開跑
 updateLayoutSettings();
