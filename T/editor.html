@@ -15,12 +15,12 @@
         <div class="global-settings">
             <div class="setting-item"><label>畫布寬度:</label><input type="number" id="canvas-w" value="800" style="width:70px;"></div>
             <div class="setting-item"><label>高度:</label><input type="number" id="canvas-h" value="450" style="width:70px;"></div>
-            <div class="setting-item"><label>總時間節點數:</label><input type="number" id="total-nodes" value="50" min="2" max="50" style="width:60px;"></div>
+            <div class="setting-item"><label>總時間節點數:</label><input type="number" id="total-nodes" value="50" min="2" max="6000" style="width:80px;"></div>
             <div class="setting-item">
                 <label>循環模式:</label>
                 <select id="loop-type" style="width:150px;">
-                    <option value="forward">順循環 (0-49, 0-49)</option>
-                    <option value="pingpong">反循環 (0-49, 49-0)</option>
+                    <option value="forward">順循環 (正向播放)</option>
+                    <option value="pingpong">反循環 (來回往返)</option>
                 </select>
             </div>
             <div class="setting-item">
