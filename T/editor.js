@@ -18,7 +18,7 @@ let ts = { mode: null, lastX: 0, lastY: 0, initialProps: null, layer: null };
 const canvas = document.getElementById('main-canvas'), ctx = canvas.getContext('2d');
 const canvasW = document.getElementById('canvas-w'), canvasH = document.getElementById('canvas-h'), totalNodesInput = document.getElementById('total-nodes'), loopTypeSelect = document.getElementById('loop-type');
 const canvasBgType = document.getElementById('canvas-bg-type'); 
-const fileUpload = document.getElementById('file-upload'), audioUpload = document.getElementById('audio-upload'), audioStatus = document.getElementById('audio-status');
+const fileUpload = document.getElementById('file-upload'), audioUpload = document.getElementById('audio-upload'), audioStatus = document.getElementById('audio-status'), bgmStartNodeInput = document.getElementById('bgm-start-node');
 const layerListDiv = document.getElementById('layer-list'), nodeSlider = document.getElementById('node-slider'), directFrameInput = document.getElementById('direct-frame-input');
 const nodeIdxLbls = document.querySelectorAll('.node-idx-lbl'), timeSecLbl = document.getElementById('time-sec-lbl');
 const propertyPanel = document.getElementById('property-panel'), selectedTitle = document.getElementById('selected-title');
@@ -41,6 +41,7 @@ function updateLayoutSettings() {
     if(currentNode >= project.totalNodes) { currentNode = project.totalNodes - 1; }
     nodeSlider.value = currentNode; directFrameInput.value = currentNode;
     propStart.max = project.totalNodes - 1; propEnd.max = project.totalNodes - 1;
+    if(bgmStartNodeInput) { bgmStartNodeInput.max = project.totalNodes - 1; }
     drawFrame();
 }
 
@@ -215,8 +216,14 @@ function changeCurrentNode(nodeValue) {
     nodeSlider.value = currentNode; directFrameInput.value = currentNode;
     nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode); timeSecLbl.textContent = (currentNode * 0.1).toFixed(1);
     
+    // 🔥 修正點：手動拖曳拉桿時，若當前點大於 BGM 出現點，精準定位音訊播放進度，否則音樂歸零
     if (!isPlaying && !isRecording && bgmAudio.src) {
-        bgmAudio.currentTime = currentNode * project.nodeDuration;
+        const bgmStart = parseInt(bgmStartNodeInput.value) || 0;
+        if (currentNode >= bgmStart) {
+            bgmAudio.currentTime = (currentNode - bgmStart) * project.nodeDuration;
+        } else {
+            bgmAudio.currentTime = 0;
+        }
     }
     
     if(selectedImageId) selectLayer(selectedImageId); else drawFrame();
@@ -315,7 +322,7 @@ function drawFrame() {
     }
 }
 
-// 10. 畫布滑鼠矩陣座標換算（🔥已加入動態比例計算，徹底解決網頁縮放導致功能失效的問題）
+// 10. 畫布滑鼠矩陣座標換算與精準縮放對齊
 function getRotatedLocalCoords(layer, mx, my) {
     const props = computeProps(layer, currentNode); if(!props) return null;
     const rad = -props.rot * Math.PI / 180;
@@ -327,7 +334,6 @@ canvas.addEventListener('mousedown', (e) => {
     if(isPlaying || isRecording) return;
     const rect = canvas.getBoundingClientRect();
     
-    // 🔥 核心修正：考慮畫布經由 CSS 縮放後的實體與顯示比例，進行精準座標對齊
     const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
     const my = (e.clientY - rect.top) * (canvas.height / rect.height);
 
@@ -361,7 +367,6 @@ window.addEventListener('mousemove', (e) => {
     if(!ts.mode) return;
     const rect = canvas.getBoundingClientRect();
     
-    // 🔥 核心修正：移動期間同步進行畫布比例換算，確保拖曳速度與滑鼠完全 1:1 同步
     const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
     const my = (e.clientY - rect.top) * (canvas.height / rect.height);
     
@@ -395,21 +400,27 @@ window.addEventListener('mousemove', (e) => {
 
 window.addEventListener('mouseup', () => { ts.mode = null; });
 
-// 11. 播放預覽控制器
+// 11. 播放預覽控制器 (🔥已整合 BGM 節點起始切入邏輯)
 document.getElementById('btn-play').addEventListener('click', () => {
     if(isPlaying || isRecording) return; 
     isPlaying = true; playDirection = 1;
     
     initAudioEngine();
+    
+    const bgmStart = parseInt(bgmStartNodeInput.value) || 0;
     if (bgmAudio.src) {
-        bgmAudio.currentTime = currentNode * project.nodeDuration;
-        bgmAudio.play().catch(e => console.log("等待授權音訊播放"));
+        if (currentNode >= bgmStart) {
+            bgmAudio.currentTime = (currentNode - bgmStart) * project.nodeDuration;
+            bgmAudio.play().catch(e => console.log("等待授權音訊播放"));
+        } else {
+            bgmAudio.currentTime = 0;
+            bgmAudio.pause();
+        }
     }
 
     playInterval = setInterval(() => {
         if(project.loopType === 'forward') { 
             currentNode = (currentNode + 1) % project.totalNodes; 
-            if (currentNode === 0 && bgmAudio.src) bgmAudio.currentTime = 0; 
         } 
         else {
             currentNode += playDirection;
@@ -419,6 +430,21 @@ document.getElementById('btn-play').addEventListener('click', () => {
         nodeSlider.value = currentNode; directFrameInput.value = currentNode;
         nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode); timeSecLbl.textContent = (currentNode * 0.1).toFixed(1);
         
+        // 實時比對 BGM 節點狀態
+        if (bgmAudio.src) {
+            if (currentNode >= bgmStart) {
+                if (currentNode === bgmStart || bgmAudio.paused) {
+                    bgmAudio.currentTime = (currentNode - bgmStart) * project.nodeDuration;
+                    bgmAudio.play().catch(e => {});
+                }
+            } else {
+                if (!bgmAudio.paused) {
+                    bgmAudio.pause();
+                    bgmAudio.currentTime = 0;
+                }
+            }
+        }
+
         drawFrame();
     }, project.nodeDuration * 1000);
 });
@@ -447,7 +473,7 @@ document.getElementById('btn-export').addEventListener('click', () => {
     });
 });
 
-// 13. 實時影音大合流錄製模組
+// 13. 實時影音大合流錄製模組 (🔥已整合 BGM 節點出沒同步)
 async function startRealtimeAudioVideoRecord(formatType, extension) {
     if(project.images.length === 0) { alert("請上傳素材！"); return; }
     
@@ -486,9 +512,15 @@ async function startRealtimeAudioVideoRecord(formatType, extension) {
 
     const finishPromise = new Promise(r => recorder.onstop = () => r(new Blob(chunks, { type: selectedFormat })));
     
+    const bgmStart = parseInt(bgmStartNodeInput.value) || 0;
     changeCurrentNode(0);
     recorder.start();
-    if (bgmAudio.src) { bgmAudio.currentTime = 0; bgmAudio.play(); }
+    
+    if (bgmAudio.src) { 
+        bgmAudio.currentTime = 0; 
+        if (currentNode >= bgmStart) bgmAudio.play().catch(e=>{});
+        else bgmAudio.pause();
+    }
 
     let step = 0;
     const recordInterval = setInterval(() => {
@@ -502,6 +534,22 @@ async function startRealtimeAudioVideoRecord(formatType, extension) {
             nodeSlider.value = currentNode; directFrameInput.value = currentNode;
             nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode);
             timeSecLbl.textContent = (currentNode * 0.1).toFixed(1);
+            
+            // 錄製中實時偵測音軌起降點
+            if (bgmAudio.src) {
+                if (currentNode >= bgmStart) {
+                    if (currentNode === bgmStart || bgmAudio.paused) {
+                        bgmAudio.currentTime = (currentNode - bgmStart) * project.nodeDuration;
+                        bgmAudio.play().catch(e => {});
+                    }
+                } else {
+                    if (!bgmAudio.paused) {
+                        bgmAudio.pause();
+                        bgmAudio.currentTime = 0;
+                    }
+                }
+            }
+            
             drawFrame();
         }
     }, project.nodeDuration * 1000);
