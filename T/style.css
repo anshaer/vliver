@@ -91,7 +91,7 @@ body, html {
 .main-workspace {
     flex: 1;
     display: flex;
-    min-height: 0; /* 關鍵修正：確保防止視窗破裂跑版 */
+    min-height: 0; 
 }
 
 /* 左右側邊欄通用樣式 */
@@ -133,6 +133,7 @@ body, html {
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
+    text-align: center;
 }
 
 /* 中央畫布舞台區 */
