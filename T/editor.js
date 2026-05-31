@@ -7,8 +7,9 @@ let project = { width: 800, height: 450, totalNodes: 50, nodeDuration: 0.1, loop
 let loadedFiles = {}, imageObjects = {}, selectedImageId = null, currentNode = 0, isPlaying = false, playInterval = null, playDirection = 1;
 let isRecording = false;
 
-// 音訊控制核心主機環境變數
+// 音訊控制核心主機環境變數與實體記憶緩存
 let bgmAudio = new Audio();
+let loadedAudioFile = null; // 用於快取上傳的實體音樂二進位檔案以供打包
 let audioCtx = null, audioSource = null, audioDest = null;
 
 // 滑鼠拖放、縮放、旋轉狀態追蹤器
@@ -18,7 +19,8 @@ let ts = { mode: null, lastX: 0, lastY: 0, initialProps: null, layer: null };
 const canvas = document.getElementById('main-canvas'), ctx = canvas.getContext('2d');
 const canvasW = document.getElementById('canvas-w'), canvasH = document.getElementById('canvas-h'), totalNodesInput = document.getElementById('total-nodes'), loopTypeSelect = document.getElementById('loop-type');
 const canvasBgType = document.getElementById('canvas-bg-type'); 
-const fileUpload = document.getElementById('file-upload'), audioUpload = document.getElementById('audio-upload'), audioStatus = document.getElementById('audio-status'), bgmStartNodeInput = document.getElementById('bgm-start-node');
+const fileUpload = document.getElementById('file-upload'), audioUpload = document.getElementById('audio-upload'), audioStatus = document.getElementById('audio-status');
+const bgmStartNodeInput = document.getElementById('bgm-start-node'), bgmEndNodeInput = document.getElementById('bgm-end-node');
 const layerListDiv = document.getElementById('layer-list'), nodeSlider = document.getElementById('node-slider'), directFrameInput = document.getElementById('direct-frame-input');
 const nodeIdxLbls = document.querySelectorAll('.node-idx-lbl'), timeSecLbl = document.getElementById('time-sec-lbl');
 const propertyPanel = document.getElementById('property-panel'), selectedTitle = document.getElementById('selected-title');
@@ -68,6 +70,7 @@ if (audioUpload) {
     audioUpload.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
+            loadedAudioFile = file; // 快取音軌供導出備用
             bgmAudio.src = URL.createObjectURL(file);
             audioStatus.textContent = "🎵 已載入音軌: " + file.name;
             audioStatus.style.color = "var(--choco-dark)";
@@ -216,10 +219,13 @@ function changeCurrentNode(nodeValue) {
     nodeSlider.value = currentNode; directFrameInput.value = currentNode;
     nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode); timeSecLbl.textContent = (currentNode * 0.1).toFixed(1);
     
-    // 🔥 修正點：手動拖曳拉桿時，若當前點大於 BGM 出現點，精準定位音訊播放進度，否則音樂歸零
+    // 手動拖拉時：實時偵測起迄雙輸入框極值，同步音效
     if (!isPlaying && !isRecording && bgmAudio.src) {
         const bgmStart = parseInt(bgmStartNodeInput.value) || 0;
-        if (currentNode >= bgmStart) {
+        const bgmEndStr = bgmEndNodeInput.value.trim();
+        const bgmEndVal = (bgmEndStr === '-' || bgmEndStr === '') ? Infinity : (parseInt(bgmEndStr) || 0);
+
+        if (currentNode >= bgmStart && currentNode <= bgmEndVal) {
             bgmAudio.currentTime = (currentNode - bgmStart) * project.nodeDuration;
         } else {
             bgmAudio.currentTime = 0;
@@ -322,7 +328,7 @@ function drawFrame() {
     }
 }
 
-// 10. 畫布滑鼠矩陣座標換算與精準縮放對齊
+// 10. 畫布滑鼠控制對齊
 function getRotatedLocalCoords(layer, mx, my) {
     const props = computeProps(layer, currentNode); if(!props) return null;
     const rad = -props.rot * Math.PI / 180;
@@ -333,7 +339,6 @@ function getRotatedLocalCoords(layer, mx, my) {
 canvas.addEventListener('mousedown', (e) => {
     if(isPlaying || isRecording) return;
     const rect = canvas.getBoundingClientRect();
-    
     const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
     const my = (e.clientY - rect.top) * (canvas.height / rect.height);
 
@@ -366,7 +371,6 @@ canvas.addEventListener('mousedown', (e) => {
 window.addEventListener('mousemove', (e) => {
     if(!ts.mode) return;
     const rect = canvas.getBoundingClientRect();
-    
     const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
     const my = (e.clientY - rect.top) * (canvas.height / rect.height);
     
@@ -400,21 +404,22 @@ window.addEventListener('mousemove', (e) => {
 
 window.addEventListener('mouseup', () => { ts.mode = null; });
 
-// 11. 播放預覽控制器 (🔥已整合 BGM 節點起始切入邏輯)
+// 11. 播放預覽控制器 (支援起迄範圍偵測)
 document.getElementById('btn-play').addEventListener('click', () => {
     if(isPlaying || isRecording) return; 
     isPlaying = true; playDirection = 1;
-    
     initAudioEngine();
     
     const bgmStart = parseInt(bgmStartNodeInput.value) || 0;
+    const bgmEndStr = bgmEndNodeInput.value.trim();
+    const bgmEndVal = (bgmEndStr === '-' || bgmEndStr === '') ? Infinity : (parseInt(bgmEndStr) || 0);
+
     if (bgmAudio.src) {
-        if (currentNode >= bgmStart) {
+        if (currentNode >= bgmStart && currentNode <= bgmEndVal) {
             bgmAudio.currentTime = (currentNode - bgmStart) * project.nodeDuration;
-            bgmAudio.play().catch(e => console.log("等待授權音訊播放"));
+            bgmAudio.play().catch(e => {});
         } else {
-            bgmAudio.currentTime = 0;
-            bgmAudio.pause();
+            bgmAudio.currentTime = 0; bgmAudio.pause();
         }
     }
 
@@ -430,18 +435,15 @@ document.getElementById('btn-play').addEventListener('click', () => {
         nodeSlider.value = currentNode; directFrameInput.value = currentNode;
         nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode); timeSecLbl.textContent = (currentNode * 0.1).toFixed(1);
         
-        // 實時比對 BGM 節點狀態
+        // 實時聲畫軌道起迄範圍判定
         if (bgmAudio.src) {
-            if (currentNode >= bgmStart) {
+            if (currentNode >= bgmStart && currentNode <= bgmEndVal) {
                 if (currentNode === bgmStart || bgmAudio.paused) {
                     bgmAudio.currentTime = (currentNode - bgmStart) * project.nodeDuration;
                     bgmAudio.play().catch(e => {});
                 }
             } else {
-                if (!bgmAudio.paused) {
-                    bgmAudio.pause();
-                    bgmAudio.currentTime = 0;
-                }
+                if (!bgmAudio.paused) { bgmAudio.pause(); bgmAudio.currentTime = 0; }
             }
         }
 
@@ -450,22 +452,36 @@ document.getElementById('btn-play').addEventListener('click', () => {
 });
 
 document.getElementById('btn-stop').addEventListener('click', () => { 
-    clearInterval(playInterval); 
-    isPlaying = false; 
+    clearInterval(playInterval); isPlaying = false; 
     if (bgmAudio.src) { bgmAudio.pause(); bgmAudio.currentTime = 0; }
     changeCurrentNode(0);
 });
 
-// 12. 專案檔匯出 (.ase)
+// 12. 專案檔匯出 (.ase) —— 🔥已加入音訊核心軌道包覆
 document.getElementById('btn-export').addEventListener('click', () => {
     if(project.images.length === 0) { alert("請上傳圖片素材再行匯出！"); return; }
     const zip = new JSZip(), imgFolder = zip.folder("images");
+    
     const cleanConfig = {
         width: project.width, height: project.height, totalNodes: project.totalNodes, nodeDuration: project.nodeDuration, loopType: project.loopType,
-        images: project.images.map(l => ({ filename: l.filename, startNode: l.startNode, endNode: l.endNode, pivotX: l.pivotX, pivotY: l.pivotY, init: l.init, keyframes: l.keyframes }))
+        images: project.images.map(l => ({ filename: l.filename, startNode: l.startNode, endNode: l.endNode, pivotX: l.pivotX, pivotY: l.pivotY, init: l.init, keyframes: l.keyframes })),
+        // 新增：寫入音訊設定到專案 JSON
+        audio: loadedAudioFile ? {
+            filename: "audio/" + loadedAudioFile.name,
+            rawName: loadedAudioFile.name,
+            startNode: parseInt(bgmStartNodeInput.value) || 0,
+            endNode: bgmEndNodeInput.value.trim()
+        } : null
     };
+    
     zip.file("config.json", JSON.stringify(cleanConfig, null, 2));
     project.images.forEach(l => { const f = loadedFiles[l.rawName]; if(f) imgFolder.file(l.rawName, f); });
+    
+    // 實體音檔打包封存
+    if (loadedAudioFile) {
+        zip.folder("audio").file(loadedAudioFile.name, loadedAudioFile);
+    }
+    
     zip.generateAsync({type:"blob"}).then(blob => {
         const url = URL.createObjectURL(blob), a = document.createElement('a');
         a.href = url; a.download = "animation_project.ase"; document.body.appendChild(a); a.click();
@@ -473,7 +489,7 @@ document.getElementById('btn-export').addEventListener('click', () => {
     });
 });
 
-// 13. 實時影音大合流錄製模組 (🔥已整合 BGM 節點出沒同步)
+// 13. 實時影音大合流錄製模組 (支援起迄範圍)
 async function startRealtimeAudioVideoRecord(formatType, extension) {
     if(project.images.length === 0) { alert("請上傳素材！"); return; }
     
@@ -481,10 +497,7 @@ async function startRealtimeAudioVideoRecord(formatType, extension) {
     if (!selectedFormat && extension === 'mp4') {
         selectedFormat = ['video/mp4;codecs=avc1', 'video/x-matroska;codecs=avc1'].find(f => MediaRecorder.isTypeSupported(f));
     }
-    if (!selectedFormat) {
-        alert(`當前瀏覽器不支援原生 ${extension.toUpperCase()} 錄製環境。`);
-        return;
-    }
+    if (!selectedFormat) { alert(`當前瀏覽器不支援原生 ${extension.toUpperCase()} 錄製環境。`); return; }
 
     document.getElementById('btn-stop').click(); 
     isRecording = true;
@@ -497,15 +510,10 @@ async function startRealtimeAudioVideoRecord(formatType, extension) {
     const videoStream = canvas.captureStream(30);
     const tracks = [...videoStream.getVideoTracks()];
 
-    if (bgmAudio.src && audioDest) {
-        tracks.push(...audioDest.stream.getAudioTracks());
-    }
+    if (bgmAudio.src && audioDest) { tracks.push(...audioDest.stream.getAudioTracks()); }
 
     const combinedStream = new MediaStream(tracks);
-    const recorder = new MediaRecorder(combinedStream, { 
-        mimeType: selectedFormat,
-        videoBitsPerSecond: 15000000 
-    });
+    const recorder = new MediaRecorder(combinedStream, { mimeType: selectedFormat, videoBitsPerSecond: 15000000 });
 
     const chunks = []; 
     recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
@@ -513,12 +521,15 @@ async function startRealtimeAudioVideoRecord(formatType, extension) {
     const finishPromise = new Promise(r => recorder.onstop = () => r(new Blob(chunks, { type: selectedFormat })));
     
     const bgmStart = parseInt(bgmStartNodeInput.value) || 0;
+    const bgmEndStr = bgmEndNodeInput.value.trim();
+    const bgmEndVal = (bgmEndStr === '-' || bgmEndStr === '') ? Infinity : (parseInt(bgmEndStr) || 0);
+    
     changeCurrentNode(0);
     recorder.start();
     
     if (bgmAudio.src) { 
         bgmAudio.currentTime = 0; 
-        if (currentNode >= bgmStart) bgmAudio.play().catch(e=>{});
+        if (currentNode >= bgmStart && currentNode <= bgmEndVal) bgmAudio.play().catch(e=>{});
         else bgmAudio.pause();
     }
 
@@ -526,43 +537,33 @@ async function startRealtimeAudioVideoRecord(formatType, extension) {
     const recordInterval = setInterval(() => {
         step++;
         if (step >= queue.length) {
-            clearInterval(recordInterval);
-            recorder.stop();
+            clearInterval(recordInterval); recorder.stop();
             if (bgmAudio.src) bgmAudio.pause();
         } else {
             currentNode = queue[step];
             nodeSlider.value = currentNode; directFrameInput.value = currentNode;
-            nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode);
-            timeSecLbl.textContent = (currentNode * 0.1).toFixed(1);
+            nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode); timeSecLbl.textContent = (currentNode * 0.1).toFixed(1);
             
-            // 錄製中實時偵測音軌起降點
             if (bgmAudio.src) {
-                if (currentNode >= bgmStart) {
+                if (currentNode >= bgmStart && currentNode <= bgmEndVal) {
                     if (currentNode === bgmStart || bgmAudio.paused) {
                         bgmAudio.currentTime = (currentNode - bgmStart) * project.nodeDuration;
                         bgmAudio.play().catch(e => {});
                     }
                 } else {
-                    if (!bgmAudio.paused) {
-                        bgmAudio.pause();
-                        bgmAudio.currentTime = 0;
-                    }
+                    if (!bgmAudio.paused) { bgmAudio.pause(); bgmAudio.currentTime = 0; }
                 }
             }
-            
             drawFrame();
         }
     }, project.nodeDuration * 1000);
 
     const finalBlob = await finishPromise;
-    const videoUrl = URL.createObjectURL(finalBlob); 
-    const dl = document.createElement('a');
+    const videoUrl = URL.createObjectURL(finalBlob); const dl = document.createElement('a');
     dl.href = videoUrl; dl.download = `animation_output.${extension}`; 
-    document.body.appendChild(dl); dl.click(); document.body.removeChild(dl); 
-    URL.revokeObjectURL(videoUrl);
+    document.body.appendChild(dl); dl.click(); document.body.removeChild(dl); URL.revokeObjectURL(videoUrl);
 
-    isRecording = false;
-    changeCurrentNode(0);
+    isRecording = false; changeCurrentNode(0);
 }
 
 document.getElementById('btn-export-webm').addEventListener('click', async () => {
@@ -579,7 +580,7 @@ document.getElementById('btn-export-mp4').addEventListener('click', async () => 
     btn.textContent = bkp; btn.disabled = false;
 });
 
-// 14. 專案還原匯入功能 (.ase)
+// 14. 專案還原匯入功能 (.ase) —— 🔥向下防呆相容舊專案
 const btnImport = document.getElementById('btn-import'), aseUpload = document.getElementById('ase-upload');
 if (btnImport && aseUpload) { btnImport.addEventListener('click', () => aseUpload.click()); }
 
@@ -602,9 +603,15 @@ aseUpload.addEventListener('change', async (e) => {
         loadedFiles = {}; imageObjects = {}; selectedImageId = null;
         propertyPanel.style.display = 'none';
 
+        // 卸載重置當前音樂快取
+        loadedAudioFile = null; bgmAudio.src = "";
+        audioStatus.textContent = "尚未載入音訊軌"; audioStatus.style.color = "#888";
+        bgmStartNodeInput.value = 0; bgmEndNodeInput.value = "-";
+
         const imagePromises = [];
         const importedImages = importedConfig.images || [];
 
+        // 解析還原圖層素材
         for (let layer of importedImages) {
             layer.rawName = layer.filename.replace("images/", "");
             layer.id = "layer_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
@@ -625,6 +632,26 @@ aseUpload.addEventListener('change', async (e) => {
                 imagePromises.push(promise);
             }
         }
+
+        // 🔥 關鍵向下相容：判定新版匯出的專案是否內含音軌，若沒有則直接略過
+        if (importedConfig.audio) {
+            const audioCfg = importedConfig.audio;
+            bgmStartNodeInput.value = audioCfg.startNode ?? 0;
+            bgmEndNodeInput.value = audioCfg.endNode ?? "-";
+
+            const zipAudioFile = zip.file(audioCfg.filename) || zip.file("audio/" + audioCfg.rawName);
+            if (zipAudioFile) {
+                const audioPromise = zipAudioFile.async("blob").then((blob) => {
+                    const audioFile = new File([blob], audioCfg.rawName, { type: blob.type });
+                    loadedAudioFile = audioFile;
+                    bgmAudio.src = URL.createObjectURL(audioFile);
+                    audioStatus.textContent = "🎵 已載入音軌: " + audioCfg.rawName;
+                    audioStatus.style.color = "var(--choco-dark)";
+                });
+                imagePromises.push(audioPromise);
+            }
+        }
+
         await Promise.all(imagePromises);
         project.images = importedImages;
         updateTextureDropdowns(); renderLayerUI(); changeCurrentNode(0);
