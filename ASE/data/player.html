@@ -3,40 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASE 官方 API 滿版自適應播放器</title>
-    
+    <title>ASE API </title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    
     <script src="https://storage.googleapis.com/ase-player-cdn/ase-player.js"></script>
-    
     <style>
-        /* ==========================================================================
-           🎨 滿版等比例外觀排版樣式表 (CSS)
-           ========================================================================== */
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
-            background-color: #1e1e1e; /* 沉浸式深色背景 */
+            background-color: #1e1e1e; 
             display: flex; align-items: center; justify-content: center;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
-
-        /* 滿版視窗極限容器 */
         .player-viewport {
             width: 100vw; height: 100vh;
             display: flex; align-items: center; justify-content: center;
             position: relative;
         }
-
-        /* 💡 核心幾何關鍵：利用 object-fit: contain 讓畫布根據您的 API 設好的內部寬高，
-           自動放大至視窗極限，並且看先碰撞到「高邊」或「寬邊」就會停止，永遠維持等比例置中 */
         #ase-canvas {
             width: 100% !important;
             height: 100% !important;
             object-fit: contain; 
             background: transparent;
         }
-
-        /* 讀取提示層樣式 */
         #loading-txt {
             position: absolute; color: #8ee3cf; font-size: 16px;
             font-weight: bold; letter-spacing: 1px; text-align: center;
@@ -45,26 +32,14 @@
     </style>
 </head>
 <body>
-
 <div class="player-viewport">
     <div id="loading-txt">正在調用官方 API 加載專案 01.ase...</div>
-
     <canvas id="ase-canvas" style="display:none;"></canvas>
 </div>
-
 <script>
-    // ==========================================================================
-    // ⚙️ 呼叫您的官方 AsePlayer API 接口
-    // ==========================================================================
     window.addEventListener('DOMContentLoaded', () => {
-        
-        // 🚀 執行核心公式：直接傳入專案檔路徑、Canvas ID、Loading提示 ID
-        // 您的 AsePlayer 會自動進行：異步下載 -> 平行解碼 -> 修改 Canvas 寬高 -> 自動啟動循環動畫
-        AsePlayer.loadAndPlay('001.ase', 'ase-canvas', 'loading-txt');
-        
+        AsePlayer.loadAndPlay('001.ase', 'ase-canvas', 'loading-txt');    
     });
-
-    // ⚡ 選填：若您當初在 editor.html 有埋藏時間軸指令，此處可同步監聽全域廣播
     window.addEventListener('ase-event', (e) => {
         console.log(`[全域事件捕捉] 影格 ${e.detail.node} 觸發自訂指令: ${e.detail.eventName}`);
     });
