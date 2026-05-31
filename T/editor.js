@@ -13,7 +13,7 @@ let ts = { mode: null, lastX: 0, lastY: 0, initialProps: null, layer: null };
 // 2. DOM 元素節點快取
 const canvas = document.getElementById('main-canvas'), ctx = canvas.getContext('2d');
 const canvasW = document.getElementById('canvas-w'), canvasH = document.getElementById('canvas-h'), totalNodesInput = document.getElementById('total-nodes'), loopTypeSelect = document.getElementById('loop-type');
-const canvasBgType = document.getElementById('canvas-bg-type'); 
+const canvasBgType = document.getElementById('canvas-bg-type'); // 綁定新增的底色選單
 const fileUpload = document.getElementById('file-upload'), layerListDiv = document.getElementById('layer-list'), nodeSlider = document.getElementById('node-slider'), directFrameInput = document.getElementById('direct-frame-input');
 const nodeIdxLbls = document.querySelectorAll('.node-idx-lbl'), timeSecLbl = document.getElementById('time-sec-lbl');
 const propertyPanel = document.getElementById('property-panel'), selectedTitle = document.getElementById('selected-title');
@@ -28,9 +28,7 @@ function updateLayoutSettings() {
     project.width = parseInt(canvasW.value) || 800;
     project.height = parseInt(canvasH.value) || 450;
     canvas.width = project.width; canvas.height = project.height;
-    
-    // 將 Math.min 限制放寬至 6000 節點
-    project.totalNodes = Math.min(6000, Math.max(2, parseInt(totalNodesInput.value) || 50));
+    project.totalNodes = Math.min(50, Math.max(2, parseInt(totalNodesInput.value) || 50));
     project.loopType = loopTypeSelect.value;
     
     nodeSlider.max = project.totalNodes - 1; directFrameInput.max = project.totalNodes - 1;
@@ -39,10 +37,7 @@ function updateLayoutSettings() {
     propStart.max = project.totalNodes - 1; propEnd.max = project.totalNodes - 1;
     drawFrame();
 }
-
-// 監聽數值輸入事件，採用 input 實時刷新避免拖曳卡死
-[canvasW, canvasH, totalNodesInput].forEach(el => el.addEventListener('input', updateLayoutSettings));
-loopTypeSelect.addEventListener('change', updateLayoutSettings);
+[canvasW, canvasH, totalNodesInput, loopTypeSelect].forEach(el => el.addEventListener('change', updateLayoutSettings));
 if (canvasBgType) { canvasBgType.addEventListener('change', drawFrame); }
 
 // 4. 素材檔案異步上傳處理
@@ -230,17 +225,20 @@ function computeProps(layer, node) {
 
 // 8. 畫布即時重繪渲染引擎
 function drawFrame() {
+    // A. 乾淨清空畫布
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    // B. 🔥 核心修復：依據選擇的底色真實填充畫布像素，徹底解決錄影時半透明邊緣產生白邊/雜邊的壓縮編碼問題
     const bgMode = canvasBgType ? canvasBgType.value : 'white';
     if (bgMode === 'white') {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     } else if (bgMode === 'green') {
-        ctx.fillStyle = '#00ff00';
+        ctx.fillStyle = '#00ff00'; // 標準高亮去背綠
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
+    } // 如果是 'transparent' 則維持純透明像素底
 
+    // C. 依序繪製各個圖層
     for(let i = project.images.length - 1; i >= 0; i--) {
         const layer = project.images[i];
         const props = computeProps(layer, currentNode); if (!props) continue;
@@ -260,6 +258,7 @@ function drawFrame() {
         ctx.drawImage(img, -props.w * px, -props.h * py, props.w, props.h); ctx.restore();
     }
 
+    // 繪製包含選取狀態、控制手把與自訂紅色錨點的外框
     if(selectedImageId && !isPlaying && !isRecording) {
         const layer = project.images.find(l => l.id === selectedImageId);
         const props = computeProps(layer, currentNode);
@@ -272,12 +271,15 @@ function drawFrame() {
             ctx.strokeStyle = '#007fff'; ctx.lineWidth = 2; 
             ctx.strokeRect(-props.w * px, -props.h * py, props.w, props.h);
             
+            // 右下角縮放點
             ctx.fillStyle = '#ffffff'; ctx.fillRect(rxCorner - 6, ryCorner - 6, 12, 12);
             ctx.strokeStyle = '#007fff'; ctx.strokeRect(rxCorner - 6, ryCorner - 6, 12, 12);
             
+            // 上方旋轉點
             ctx.beginPath(); ctx.moveTo(rotX, rotY); ctx.lineTo(rotX, rotY - 25); ctx.stroke();
             ctx.beginPath(); ctx.arc(rotX, rotY - 25, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
             
+            // 繪製中心紅色原點把手位置
             ctx.fillStyle = '#ff0000'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI*2); ctx.fill();
             ctx.restore();
         }
@@ -409,9 +411,11 @@ document.getElementById('btn-export-webm').addEventListener('click', async () =>
     for(let i=0; i<project.totalNodes; i++) queue.push(i);
     if(project.loopType === 'pingpong') { for(let i=project.totalNodes-2; i>=0; i--) queue.push(i); }
 
+    // 提升畫布擷取率至 30 FPS 確保細節飽和
     const stream = canvas.captureStream(30);
     let selectedFormat = ['video/webm;codecs=vp9', 'video/webm'].find(f => MediaRecorder.isTypeSupported(f));
     
+    // 手動指定高位元率流量 15Mbps 徹底打破低畫質魔咒
     const recorder = new MediaRecorder(stream, { 
         mimeType: selectedFormat,
         videoBitsPerSecond: 15000000 
@@ -437,12 +441,13 @@ document.getElementById('btn-export-webm').addEventListener('click', async () =>
     isRecording = false; btnWebm.textContent = backup; btnWebm.disabled = false; changeCurrentNode(0);
 });
 
-// 12-2. 畫布高畫質 MP4 錄製外包導出
+// 12-2. 新增：畫布高畫質 MP4 錄製外包導出
 const btnExportMp4 = document.getElementById('btn-export-mp4');
 if (btnExportMp4) {
     btnExportMp4.addEventListener('click', async () => {
         if(project.images.length === 0) { alert("請上傳素材！"); return; }
         
+        // 檢查瀏覽器是否支援原生 MP4 錄製編碼格式
         let selectedFormat = ['video/mp4;codecs=avc1', 'video/mp4', 'video/x-matroska;codecs=avc1'].find(f => MediaRecorder.isTypeSupported(f));
         
         if (!selectedFormat) {
@@ -458,8 +463,10 @@ if (btnExportMp4) {
         for(let i=0; i<project.totalNodes; i++) queue.push(i);
         if(project.loopType === 'pingpong') { for(let i=project.totalNodes-2; i>=0; i--) queue.push(i); }
 
+        // 擷取畫布串流 (30 FPS)
         const stream = canvas.captureStream(30);
         
+        // 指定 15Mbps 高位元率確保動態細節不失真
         const recorder = new MediaRecorder(stream, { 
             mimeType: selectedFormat,
             videoBitsPerSecond: 15000000 
@@ -471,6 +478,7 @@ if (btnExportMp4) {
         const finishPromise = new Promise(r => recorder.onstop = () => r(new Blob(chunks, { type: selectedFormat })));
         recorder.start();
 
+        // 步進逐格刷新畫布重繪
         for(let f of queue) {
             currentNode = f; nodeSlider.value = f; directFrameInput.value = f;
             nodeIdxLbls.forEach(lbl => lbl.textContent = f); timeSecLbl.textContent = (f * 0.1).toFixed(1);
@@ -481,6 +489,7 @@ if (btnExportMp4) {
         recorder.stop();
         const finalBlob = await finishPromise;
 
+        // 觸發下載
         const videoUrl = URL.createObjectURL(finalBlob); 
         const dl = document.createElement('a');
         dl.href = videoUrl; 
@@ -497,7 +506,7 @@ if (btnExportMp4) {
     });
 }
 
-// 13. 解開 .ase 專案壓縮包上傳還原
+// 13. 核心功能：解開 .ase 專案壓縮包上傳還原
 const btnImport = document.getElementById('btn-import') || document.getElementById('btn-import-trigger');
 const aseUpload = document.getElementById('ase-upload');
 
@@ -520,6 +529,7 @@ aseUpload.addEventListener('change', async (e) => {
         const configText = await configFile.async("text");
         const importedConfig = JSON.parse(configText);
 
+        // A. 填入環境全域變數設定並同步 UI 數值
         canvasW.value = importedConfig.width || 800;
         canvasH.value = importedConfig.height || 450;
         totalNodesInput.value = importedConfig.totalNodes || 50;
@@ -527,11 +537,13 @@ aseUpload.addEventListener('change', async (e) => {
 
         updateLayoutSettings();
 
+        // B. 初始化當前專案緩存，避免髒資料殘留
         loadedFiles = {};
         imageObjects = {};
         selectedImageId = null;
         propertyPanel.style.display = 'none';
 
+        // C. 解析圖層，並對 images/ 資料夾下的二進位原始圖檔執行異步重載
         const imagePromises = [];
         const importedImages = importedConfig.images || [];
 
@@ -563,6 +575,7 @@ aseUpload.addEventListener('change', async (e) => {
 
         await Promise.all(imagePromises);
 
+        // D. 套用圖層資料並全面刷新界面
         project.images = importedImages;
         updateTextureDropdowns();
         renderLayerUI();
@@ -578,4 +591,5 @@ aseUpload.addEventListener('change', async (e) => {
     }
 });
 
+// 初始化環境執行
 updateLayoutSettings();
