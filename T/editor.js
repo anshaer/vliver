@@ -55,7 +55,6 @@ function initAudioEngine() {
         audioSource = audioCtx.createMediaElementSource(bgmAudio);
         audioDest = audioCtx.createMediaStreamDestination();
         
-        // 分流：一軌通往喇叭播放，一軌通往合成節點供錄影機擷取
         audioSource.connect(audioCtx.destination);
         audioSource.connect(audioDest);
     }
@@ -64,7 +63,6 @@ function initAudioEngine() {
     }
 }
 
-// 音訊檔案載入監聽
 if (audioUpload) {
     audioUpload.addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -217,7 +215,6 @@ function changeCurrentNode(nodeValue) {
     nodeSlider.value = currentNode; directFrameInput.value = currentNode;
     nodeIdxLbls.forEach(lbl => lbl.textContent = currentNode); timeSecLbl.textContent = (currentNode * 0.1).toFixed(1);
     
-    // 時間軸拖曳時，音樂播放進度同步對齊 (音效刷帶效果)
     if (!isPlaying && !isRecording && bgmAudio.src) {
         bgmAudio.currentTime = currentNode * project.nodeDuration;
     }
@@ -318,7 +315,7 @@ function drawFrame() {
     }
 }
 
-// 10. 畫布滑鼠控制換算
+// 10. 畫布滑鼠矩陣座標換算（🔥已加入動態比例計算，徹底解決網頁縮放導致功能失效的問題）
 function getRotatedLocalCoords(layer, mx, my) {
     const props = computeProps(layer, currentNode); if(!props) return null;
     const rad = -props.rot * Math.PI / 180;
@@ -329,7 +326,10 @@ function getRotatedLocalCoords(layer, mx, my) {
 canvas.addEventListener('mousedown', (e) => {
     if(isPlaying || isRecording) return;
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    
+    // 🔥 核心修正：考慮畫布經由 CSS 縮放後的實體與顯示比例，進行精準座標對齊
+    const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const my = (e.clientY - rect.top) * (canvas.height / rect.height);
 
     let hitFound = false;
     for(let i = 0; i < project.images.length; i++) {
@@ -360,7 +360,11 @@ canvas.addEventListener('mousedown', (e) => {
 window.addEventListener('mousemove', (e) => {
     if(!ts.mode) return;
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    
+    // 🔥 核心修正：移動期間同步進行畫布比例換算，確保拖曳速度與滑鼠完全 1:1 同步
+    const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+    
     const layer = ts.layer, initProps = ts.initialProps;
     const deltaX = mx - ts.lastX, deltaY = my - ts.lastY;
 
@@ -391,7 +395,7 @@ window.addEventListener('mousemove', (e) => {
 
 window.addEventListener('mouseup', () => { ts.mode = null; });
 
-// 11. 播放預覽控制器 (整合音軌播控)
+// 11. 播放預覽控制器
 document.getElementById('btn-play').addEventListener('click', () => {
     if(isPlaying || isRecording) return; 
     isPlaying = true; playDirection = 1;
@@ -399,13 +403,13 @@ document.getElementById('btn-play').addEventListener('click', () => {
     initAudioEngine();
     if (bgmAudio.src) {
         bgmAudio.currentTime = currentNode * project.nodeDuration;
-        bgmAudio.play().catch(e => console.log("等待手勢授權音訊播放"));
+        bgmAudio.play().catch(e => console.log("等待授權音訊播放"));
     }
 
     playInterval = setInterval(() => {
         if(project.loopType === 'forward') { 
             currentNode = (currentNode + 1) % project.totalNodes; 
-            if (currentNode === 0 && bgmAudio.src) bgmAudio.currentTime = 0; // 音樂同步回頭
+            if (currentNode === 0 && bgmAudio.src) bgmAudio.currentTime = 0; 
         } 
         else {
             currentNode += playDirection;
@@ -443,14 +447,12 @@ document.getElementById('btn-export').addEventListener('click', () => {
     });
 });
 
-// 13. 核心升級：全新實時影音大合流錄製模組 (支援 WebM / MP4)
+// 13. 實時影音大合流錄製模組
 async function startRealtimeAudioVideoRecord(formatType, extension) {
     if(project.images.length === 0) { alert("請上傳素材！"); return; }
     
-    // 檢查瀏覽器編碼支援度
     let selectedFormat = [formatType].find(f => MediaRecorder.isTypeSupported(f));
     if (!selectedFormat && extension === 'mp4') {
-        // MP4 格式向下相容備用
         selectedFormat = ['video/mp4;codecs=avc1', 'video/x-matroska;codecs=avc1'].find(f => MediaRecorder.isTypeSupported(f));
     }
     if (!selectedFormat) {
@@ -462,25 +464,21 @@ async function startRealtimeAudioVideoRecord(formatType, extension) {
     isRecording = true;
     initAudioEngine();
 
-    // 建立錄製队列
     let queue = [];
     for(let i=0; i<project.totalNodes; i++) queue.push(i);
     if(project.loopType === 'pingpong') { for(let i=project.totalNodes-2; i>=0; i--) queue.push(i); }
 
-    // 1. 擷取畫布視訊軌 (30 FPS 高位元)
     const videoStream = canvas.captureStream(30);
     const tracks = [...videoStream.getVideoTracks()];
 
-    // 2. 擷取 Web Audio 混音音訊軌 (若有匯入背景音樂)
     if (bgmAudio.src && audioDest) {
         tracks.push(...audioDest.stream.getAudioTracks());
     }
 
-    // 3. 實時影音流大對接
     const combinedStream = new MediaStream(tracks);
     const recorder = new MediaRecorder(combinedStream, { 
         mimeType: selectedFormat,
-        videoBitsPerSecond: 15000000 // 15Mbps 超高畫質流量
+        videoBitsPerSecond: 15000000 
     });
 
     const chunks = []; 
@@ -488,12 +486,10 @@ async function startRealtimeAudioVideoRecord(formatType, extension) {
 
     const finishPromise = new Promise(r => recorder.onstop = () => r(new Blob(chunks, { type: selectedFormat })));
     
-    // 初始化起跑點
     changeCurrentNode(0);
     recorder.start();
     if (bgmAudio.src) { bgmAudio.currentTime = 0; bgmAudio.play(); }
 
-    // 實時定速循跡步進器 (跟隨專案播放速率，確保影音不脫節)
     let step = 0;
     const recordInterval = setInterval(() => {
         step++;
@@ -521,7 +517,6 @@ async function startRealtimeAudioVideoRecord(formatType, extension) {
     changeCurrentNode(0);
 }
 
-// 綁定錄影導出按鈕
 document.getElementById('btn-export-webm').addEventListener('click', async () => {
     const btn = document.getElementById('btn-export-webm'); const bkp = btn.textContent;
     btn.textContent = "錄製中..."; btn.disabled = true;
@@ -591,5 +586,4 @@ aseUpload.addEventListener('change', async (e) => {
     } finally { aseUpload.value = ""; }
 });
 
-// 系統初始化開跑
 updateLayoutSettings();
