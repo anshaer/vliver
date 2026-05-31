@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>動態圖片專案製作器 (多軌配樂專業版)</title>
+    <title>動態圖片專案製作器 (多軌配樂調音專業版)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link rel="stylesheet" href="style.css">
     
@@ -48,26 +48,27 @@
             text-align: right;
             display: inline-block;
         }
-        /* 多軌音訊元件獨立 UI 樣式 */
+        /* 多軌混音控制台 UI 升級樣式 */
         #audio-track-list {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px;
             margin-bottom: 15px;
-            max-height: 250px;
+            max-height: 320px;
             overflow-y: auto;
-            padding-right: 2px;
+            padding-right: 4px;
         }
         .audio-track-item {
             background: var(--mint-light);
             border: 1px solid var(--choco-light);
-            padding: 8px;
+            padding: 10px;
             border-radius: 6px;
             display: flex;
             flex-direction: column;
             gap: 6px;
             font-size: 12px;
             font-weight: bold;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .audio-track-header {
             display: flex;
@@ -83,22 +84,49 @@
             max-width: 170px;
             color: var(--choco-dark);
         }
-        .audio-track-inputs {
+        .audio-track-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 6px;
+        }
+        .audio-track-inputs {
+            display: flex;
+            align-items: center;
             gap: 4px;
         }
-        .audio-track-inputs input {
-            width: 50px !important;
+        .audio-track-inputs input[type="number"], 
+        .audio-track-inputs input[type="text"] {
+            width: 42px !important;
             padding: 2px;
             text-align: center;
             font-size: 11px;
         }
         .audio-inner-lbl {
             font-size: 11px;
-            color: #555;
+            color: #4a3b32;
             font-weight: normal;
+            white-space: nowrap;
+        }
+        .volume-slider-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+            margin-top: 2px;
+        }
+        .volume-slider {
+            flex: 1;
+            height: 4px;
+            cursor: pointer;
+            accent-color: var(--choco-dark);
+        }
+        .volume-val-lbl {
+            min-width: 30px;
+            text-align: right;
+            font-size: 11px;
+            font-family: monospace;
+            color: #666;
         }
     </style>
 </head>
@@ -106,7 +134,7 @@
 
 <div class="app-layout">
     <div class="top-navbar">
-        <h1>動態圖片專案製作器 (V.1.5.0-MultiAudio)</h1>
+        <h1>動態圖片專案製作器 (V.1.5.1-AudioMixer)</h1>
         <div class="global-settings">
             <div class="setting-item"><label>畫布寬度:</label><input type="number" id="canvas-w" value="800" style="width:65px;"></div>
             <div class="setting-item"><label>高度:</label><input type="number" id="canvas-h" value="450" style="width:65px;"></div>
@@ -141,7 +169,7 @@
             <div class="section-title">素材匯入 (JPG/PNG/WebP)</div>
             <input type="file" id="file-upload" accept=".jpg,.jpeg,.png,.webp" multiple style="margin-bottom:15px;">
             
-            <div class="section-title">音訊管理 (可匯入多個音檔)</div>
+            <div class="section-title">音訊管理 (獨立音量與淡入淡出)</div>
             <input type="file" id="audio-upload" accept=".mp3,.wav,.ogg,.m4a" multiple style="margin-bottom:8px;">
             
             <div id="audio-track-list">
