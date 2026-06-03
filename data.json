@@ -199,6 +199,7 @@
         { "title": "圖片邊框(測試)", "url": "技術支持/圖片邊框" },
         { "title": "高光(測試)", "url": "技術支持/高光" },
         { "title": "ASE專案", "url": "./TT" }
+        { "title": "鼠標製作", "url": "./鼠標" }
     ],
     "social": {
         "x": "https://x.com/Anshaer_TW_TYC",
