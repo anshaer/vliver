@@ -1,0 +1,591 @@
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鼠標製作</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        /* 溫暖陽光配色方案 */
+        :root {
+            --bg-color: #fffdf9;          /* 陽光暖米白背景 */
+            --card-bg: #ffffff;           /* 純白卡片 */
+            --text-main: #4a3f35;         /* 深暖灰主文字 */
+            --text-muted: #8c7f75;        /* 柔和次要文字 */
+            --sun-primary: #ff9f43;       /* 活力陽光橘 */
+            --sun-hover: #ff7f50;         /* 懸停暖橘紅 */
+            --border-color: #f7e8d5;      /* 柔和暖色邊框 */
+            --alert-error: #ff6b81;       /* 溫和警告紅 */
+            --alert-warning-bg: #fff3cd;  /* 警告提示區塊背景 */
+            --alert-warning-text: #856404;/* 警告提示文字 */
+            --alert-warning-border: #ffeeba;
+        }
+
+        body {
+            background-color: var(--bg-color); color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0; padding: 12px; display: flex; justify-content: center;
+            font-size: 13px; /* 基礎字體縮小，適應 1080p */
+        }
+
+        .container { 
+            width: 100%; 
+            display: flex; flex-direction: column; gap: 12px; /* 縮小區塊間距 */
+            box-sizing: border-box; 
+        }
+        
+        h1 { color: var(--sun-hover); margin-top: 0; font-size: 18px; margin-bottom: 4px; }
+        h2 { color: var(--sun-hover); margin-top: 0; font-size: 15px; margin-bottom: 10px; }
+        h3 { color: var(--sun-hover); margin-top: 0; font-size: 13px; margin-bottom: 8px; }
+        p { margin-top: 0; margin-bottom: 10px; }
+        
+        .panel {
+            background: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 10px; padding: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); box-sizing: border-box;
+        }
+
+        /* 頁籤樣式 */
+        .tab-container { display: flex; gap: 6px; border-bottom: 2px solid var(--border-color); padding-bottom: 8px; flex-wrap: wrap; }
+        .tab-btn {
+            background: transparent; color: var(--text-muted); border: 1px solid var(--border-color);
+            padding: 8px 14px; font-size: 13px; font-weight: bold; cursor: pointer; border-radius: 6px; transition: all 0.2s;
+        }
+        .tab-btn:hover { color: var(--sun-hover); border-color: var(--sun-primary); }
+        .tab-btn.active { background: var(--sun-primary); color: #ffffff; border-color: var(--sun-primary); }
+
+        .tab-content { display: none; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .tab-content.active { display: grid; }
+        .full-width { grid-column: 1 / -1; }
+
+        @media (max-width: 900px) { .tab-content.active { grid-template-columns: 1fr; } }
+
+        /* 通用元件樣式 */
+        .form-group { margin-bottom: 12px; }
+        label { display: block; margin-bottom: 4px; font-weight: bold; color: var(--text-main); font-size: 12px; }
+        select, input[type="number"], input[type="text"] {
+            width: 100%; padding: 8px; background: var(--bg-color); border: 1px solid var(--border-color);
+            border-radius: 6px; color: var(--text-main); font-size: 13px; box-sizing: border-box; transition: border-color 0.2s;
+        }
+        select:focus, input[type="number"]:focus, input[type="text"]:focus { outline: none; border-color: var(--sun-primary); }
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        .upload-zone {
+            border: 2px dashed var(--border-color); padding: 20px 15px; text-align: center;
+            border-radius: 8px; cursor: pointer; transition: all 0.3s; background: rgba(255, 159, 67, 0.03);
+        }
+        .upload-zone:hover { border-color: var(--sun-primary); background: rgba(255, 159, 67, 0.1); }
+
+        .btn {
+            background: var(--sun-primary); color: #ffffff; border: none; padding: 10px 16px;
+            border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; width: 100%; transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(255, 159, 67, 0.2);
+        }
+        .btn:hover { background: var(--sun-hover); transform: translateY(-1px); box-shadow: 0 6px 15px rgba(255, 159, 67, 0.3); }
+        .btn:disabled { background: var(--border-color); color: var(--text-muted); cursor: not-allowed; box-shadow: none; transform: none; }
+
+        .speed-presets { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+        .preset-btn { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; font-size: 11px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+        .preset-btn:hover { border-color: var(--sun-primary); color: var(--sun-hover); }
+
+        .checkerboard {
+            background-image: linear-gradient(45deg, #f5ecd8 25%, transparent 25%), linear-gradient(-45deg, #f5ecd8 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f5ecd8 75%), linear-gradient(-45deg, transparent 75%, #f5ecd8 75%);
+            background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0; background-color: #ffffff;
+        }
+
+        /* 產生器專屬 */
+        .picker-container { position: relative; border: 2px solid var(--border-color); cursor: crosshair; border-radius: 8px; overflow: hidden; margin: 10px 0; }
+        #genPickerCanvas { display: block; image-rendering: pixelated; width: 220px; height: 220px; }
+        .hotspot-dot { position: absolute; width: 8px; height: 8px; background: var(--alert-error); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; box-shadow: 0 0 0 2px #fff, 0 0 4px rgba(0,0,0,0.3); }
+        .preview-box { display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; height: 90px; }
+        #genPreviewImg { max-width: 40px; max-height: 40px; image-rendering: pixelated; }
+        .frame-list { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; max-height: 100px; overflow-y: auto; }
+        .frame-thumb { width: 40px; height: 40px; border: 1px solid var(--border-color); border-radius: 4px; object-fit: contain; background: #fff; }
+
+        /* 警告/提示區塊 */
+        .alert-box { background: var(--alert-warning-bg); color: var(--alert-warning-text); padding: 10px 14px; border-radius: 6px; border: 1px solid var(--alert-warning-border); margin-bottom: 12px; font-size: 12px; line-height: 1.5; }
+        .alert-box code { background: rgba(0,0,0,0.05); padding: 2px 5px; border-radius: 4px; font-weight: bold; }
+
+        /* Win11 風格網格打包器 (縮小版) */
+        .pack-header { display:flex; gap:10px; margin-bottom:12px; align-items: center; background: var(--bg-color); padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border-color); flex-wrap: wrap; }
+        .pack-header input { flex: 1; min-width: 180px; margin: 0; padding: 10px; font-weight: bold; font-size: 13px;}
+        
+        .win11-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+        .win-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02); transition: transform 0.2s, border-color 0.2s; }
+        .win-card:hover { border-color: var(--sun-primary); transform: translateY(-2px); }
+        
+        .win-preview { width: 64px; height: 64px; display: flex; justify-content: center; align-items: center; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border-color); overflow: hidden; }
+        .win-preview img { max-width: 36px; max-height: 36px; image-rendering: pixelated; object-fit: contain; }
+        .win-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--text-main); text-align: center; height: 18px; }
+        
+        .win-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; margin-bottom: 10px; }
+        .win-btn { padding: 6px 0; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; border: 1px solid var(--border-color); text-align: center; background: var(--bg-color); color: var(--text-main); transition: all 0.2s; }
+        .win-btn:hover { background: #f0e6d8; }
+        .win-btn-primary { background: var(--text-main); color: #fff; border-color: var(--text-main); }
+        .win-btn-primary:hover { background: var(--sun-hover); border-color: var(--sun-hover); }
+
+        .win-settings { display: flex; gap: 4px; width: 100%; color: var(--text-muted); align-items: center; justify-content: space-between; background: rgba(0,0,0,0.02); padding: 6px 8px; border-radius: 6px; box-sizing: border-box; border: 1px solid transparent; }
+        .win-settings-group { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: bold; }
+        .win-settings input { width: 38px; padding: 3px; font-size: 11px; text-align: center; border: 1px solid var(--border-color); border-radius: 4px; background: #fff; color: var(--text-main); font-weight: bold; transition: border-color 0.2s; }
+        .win-settings input:focus { border-color: var(--sun-primary); }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="tab-container">
+        <button class="tab-btn active" onclick="switchTab(event, 'tabGenerator')">✒️ 單檔製作產生器</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tabPacker')">📥 檢視與導出安裝</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tabRestore')">🔄 系統還原指引</button>
+    </div>
+
+    <div id="tabGenerator" class="tab-content active">
+        <div class="panel">
+            <h2>1. 配置規格參數</h2>
+            <div class="form-group">
+                <label>導出尺寸規格</label>
+                <select id="genSize">
+                    <option value="32">32 × 32 像素 (標準)</option>
+                    <option value="48">48 × 48 像素</option>
+                    <option value="64">64 × 64 像素</option>
+                    <option value="128">128 × 128 像素 (高解析)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>動態每格影格時長 (毫秒 ms)</label>
+                <input type="number" id="genDuration" value="100" min="16" step="16">
+                <div class="speed-presets">
+                    <button class="preset-btn" onclick="document.getElementById('genDuration').value=16; if(genImages.length>1)triggerGenLoop();">60 FPS</button>
+                    <button class="preset-btn" onclick="document.getElementById('genDuration').value=33; if(genImages.length>1)triggerGenLoop();">30 FPS</button>
+                    <button class="preset-btn" onclick="document.getElementById('genDuration').value=100; if(genImages.length>1)triggerGenLoop();">快速(100ms)</button>
+                    <button class="preset-btn" onclick="document.getElementById('genDuration').value=300; if(genImages.length>1)triggerGenLoop();">一般(300ms)</button>
+                    <button class="preset-btn" onclick="document.getElementById('genDuration').value=500; if(genImages.length>1)triggerGenLoop();">緩速(500ms)</button>
+                    <button class="preset-btn" onclick="document.getElementById('genDuration').value=1000; if(genImages.length>1)triggerGenLoop();">慢速(1000ms)</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>動作點熱區 (Hotspot)</label>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                    <div style="font-size:12px;">X: <input type="number" id="genHX" value="0" min="0"></div>
+                    <div style="font-size:12px;">Y: <input type="number" id="genHY" value="0" min="0"></div>
+                </div>
+                <div style="margin-top: 6px;">
+                    <button class="btn" style="padding:4px; font-size:11px; width:auto;" onclick="setGenPresetHotspot('topleft')">左上角(0,0)</button>
+                    <button class="btn" style="padding:4px; font-size:11px; width:auto;" onclick="setGenPresetHotspot('center')">正中央</button>
+                </div>
+            </div>
+            <button id="genDownloadBtn" class="btn" disabled onclick="outputSingleCursor()">編碼並下載游標檔案</button>
+        </div>
+        <div class="panel">
+            <h2>2. 視覺化錨點對準</h2>
+            <div class="upload-zone" onclick="document.getElementById('genFileInput').click()">
+                <span style="color:var(--sun-hover); font-weight:bold;">點擊上傳圖檔資源</span>
+                <p style="margin:4px 0 0 0; font-size:11px; color:var(--text-muted);">1張產生.cur / 多選序列產生.ani</p>
+                <input type="file" id="genFileInput" multiple accept="image/png, image/svg+xml" style="display:none;" onchange="handleGenUpload(this.files)">
+            </div>
+            <div class="hotspot-wrapper" style="display:flex; justify-content:center;">
+                <div class="picker-container checkerboard" id="genCanvasWrapper" style="width:220px; height:220px;">
+                    <canvas id="genPickerCanvas" width="220" height="220"></canvas>
+                    <div class="hotspot-dot" id="genDot" style="left:0; top:0;"></div>
+                </div>
+            </div>
+            <h3>即時動態追隨預覽</h3>
+            <div class="preview-box">
+                <img id="genPreviewImg" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
+                <div id="genPreviewInfo" style="font-size:11px; color:var(--text-muted); margin-top:4px;">等待資源輸入...</div>
+            </div>
+            <div class="frame-list" id="genFrameThumbs"></div>
+        </div>
+    </div>
+
+    <div id="tabPacker" class="tab-content">
+        <div class="panel full-width">
+            <div class="alert-box">
+                <strong>⚠️ 防阻擋設定與手動備案提醒：</strong><br>
+                1. 封裝下載 <code>.zip</code> 檔案後，請務必 <b>右鍵點選檔案 ➔ 內容 ➔ 勾選「解除封鎖」</b>，然後再進行解壓縮，以免批次檔遭系統封鎖。<br>
+                2. 批次檔.bat雙擊執行自動安裝
+                3. 若批次檔失效無法使用，您依然可以透過 WIN11 手動套用，路徑如下：<br>
+                👉 <code>設定 &gt; 藍牙與裝置 &gt; 滑鼠 &gt; 滑鼠指標與觸控 &gt; 自訂指標影像</code><br>
+                或<br>
+                👉 <code>設定 &gt; 協助工具 &gt; 滑鼠 &gt; 滑鼠指標 &gt; 自訂指標影像</code>
+            </div>
+
+            <div class="pack-header">
+                <strong style="font-size:14px;">📂 方案命名：</strong>
+                <input type="text" id="packSchemeName" value="SunnyCursorTheme" placeholder="請使用英數字命名避免路徑錯誤">
+                <button class="btn" style="width:auto; margin:0;" onclick="exportFullZipPack()">💾 導出壓縮檔含批次檔 (.zip)</button>
+            </div>
+            
+            <p style="font-size:12px; color:var(--text-muted); margin-top:0; margin-bottom:12px; text-align:center;">
+                支援上傳圖片序列或打包好的 (.cur/.ani) 檔案。上傳 <b>.ani</b> 或 <b>多張圖片(png)</b> 時，上方會立即呈現動態預覽！
+            </p>
+
+            <div class="win11-grid" id="packGridContainer">
+                </div>
+        </div>
+    </div>
+
+    <div id="tabRestore" class="tab-content">
+        <div class="panel full-width">
+            <h2>🔄 系統快速復原與清理指引</h2>
+            
+            <div class="alert-box">
+                <strong>⚠️ 防阻擋設定與手動還原備案：</strong><br>
+                1. 下載純淨還原 <code>.bat</code> 檔後，請務必先 <b>右鍵點選檔案 ➔ 內容 ➔ 勾選「解除封鎖」</b> 後，再點擊執行。<br>
+                2. 若批次檔失效，請手動前往系統還原預設指標：<br>
+                👉 <code>設定 &gt; 藍牙與裝置 &gt; 滑鼠 &gt; 滑鼠指標與觸控 &gt; 自訂指標影像</code><br>
+                或<br>
+                👉 <code>設定 &gt; 協助工具 &gt; 滑鼠 &gt; 滑鼠指標 &gt; 自訂指標影像</code>
+            </div>
+
+            <p style="font-size: 13px;">當你想反悔、清除自訂主題，或者需要換回 Windows 官方最經典的原生 Aero 指標時，可直接下載下方純淨還原檔。</p>
+            <button class="btn" style="width:auto;" onclick="downloadRestoreBat()">📥 下載純淨還原滑鼠預設值.bat</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* ================= 17種滑鼠狀態全域對照陣列 ================= */
+    const cursorSchemeMap = [
+        { key: 'Arrow', name: '標準選擇' },
+        { key: 'IBeam', name: '文字選擇' },
+        { key: 'Hand', name: '連結選擇' },
+        { key: 'Wait', name: '忙碌' },
+        { key: 'SizeNS', name: '垂直調整大小' },
+        { key: 'SizeWE', name: '水平調整大小' },
+        { key: 'SizeNWSE', name: '對角線調整 1' },
+        { key: 'SizeNESW', name: '對角線調整 2' },
+        { key: 'SizeAll', name: '移動' },
+        { key: 'Help', name: '說明選擇' },
+        { key: 'No', name: '無法使用' },
+        { key: 'AppStarting', name: '在背景作業' },
+        { key: 'UpArrow', name: '其他選擇' },
+        { key: 'Crosshair', name: '精確度選擇' },
+        { key: 'NWPen', name: '手寫筆' },
+        { key: 'Pin', name: '選取位置' },
+        { key: 'Person', name: '選取人員' }
+    ];
+
+    let genImages = []; let genLoopTimeout = null; let genCurrentIdx = 0;
+    let packDataStorage = {}; 
+    let activeTimers = {}; 
+
+    function switchTab(e, tabId) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        e.currentTarget.classList.add('active');
+        if (tabId !== 'tabGenerator' && genLoopTimeout) clearTimeout(genLoopTimeout);
+    }
+
+    /* ================= 產生器邏輯 ================= */
+    const genSize = document.getElementById('genSize');
+    const genHX = document.getElementById('genHX'); const genHY = document.getElementById('genHY');
+    const genCanvas = document.getElementById('genPickerCanvas'); const genCtx = genCanvas.getContext('2d');
+    const genDot = document.getElementById('genDot'); const genDownloadBtn = document.getElementById('genDownloadBtn');
+    const genFrameThumbs = document.getElementById('genFrameThumbs');
+
+    genSize.addEventListener('change', () => { updateGenMaxHotspot(); drawGenFirstFrame(); });
+    genHX.addEventListener('input', syncGenDotFromInputs); genHY.addEventListener('input', syncGenDotFromInputs);
+
+    document.getElementById('genCanvasWrapper').addEventListener('mousedown', function(e) {
+        if(genImages.length === 0) return;
+        const rect = this.getBoundingClientRect(); const targetSize = parseInt(genSize.value);
+        const hX = Math.floor(((e.clientX - rect.left) / 220) * targetSize);
+        const hY = Math.floor(((e.clientY - rect.top) / 220) * targetSize);
+        genHX.value = Math.max(0, Math.min(targetSize - 1, hX)); genHY.value = Math.max(0, Math.min(targetSize - 1, hY));
+        syncGenDotFromInputs();
+    });
+
+    function updateGenMaxHotspot() {
+        const m = parseInt(genSize.value) - 1; genHX.max = m; genHY.max = m;
+        if(parseInt(genHX.value) > m) genHX.value = m; if(parseInt(genHY.value) > m) genHY.value = m;
+    }
+    function setGenPresetHotspot(type) {
+        const s = parseInt(genSize.value);
+        if(type === 'topleft') { genHX.value = 0; genHY.value = 0; } else { genHX.value = Math.floor(s/2); genHY.value = Math.floor(s/2); }
+        syncGenDotFromInputs();
+    }
+    function syncGenDotFromInputs() {
+        const s = parseInt(genSize.value); const x = parseInt(genHX.value) || 0; const y = parseInt(genHY.value) || 0;
+        genDot.style.left = `${((x + 0.5) / s) * 220}px`; genDot.style.top = `${((y + 0.5) / s) * 220}px`;
+    }
+
+    function handleGenUpload(files) {
+        if(!files.length) return; if(genLoopTimeout) clearTimeout(genLoopTimeout);
+        genImages = []; genFrameThumbs.innerHTML = '';
+        let loaded = 0; const fileArr = Array.from(files).sort((a,b)=>a.name.localeCompare(b.name));
+
+        fileArr.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    genImages.push(img);
+                    const t = document.createElement('img'); t.src = e.target.result; t.className='frame-thumb';
+                    genFrameThumbs.appendChild(t); loaded++;
+                    if(loaded === fileArr.length) {
+                        genDownloadBtn.disabled = false; updateGenMaxHotspot(); drawGenFirstFrame(); syncGenDotFromInputs();
+                        genCurrentIdx = 0; triggerGenLoop();
+                    }
+                }; img.src = e.target.result;
+            }; reader.readAsDataURL(file);
+        });
+    }
+
+    function drawGenFirstFrame() {
+        genCtx.clearRect(0,0,220,220); if(!genImages.length) return;
+        genCtx.imageSmoothingEnabled = false; genCtx.drawImage(genImages[0],0,0,220,220);
+    }
+
+    function triggerGenLoop() {
+        if(!genImages.length) return; if(genLoopTimeout) clearTimeout(genLoopTimeout);
+        document.getElementById('genPreviewImg').src = genImages[genCurrentIdx].src;
+        if(genImages.length === 1) { document.getElementById('genPreviewInfo').innerText = "單張偵測：將導出靜態 (.cur)"; return; }
+        document.getElementById('genPreviewInfo').innerText = `動態同步 (${genCurrentIdx+1}/${genImages.length}) -> 導出 .ani`;
+        const ms = parseInt(document.getElementById('genDuration').value) || 100;
+        genLoopTimeout = setTimeout(() => { genCurrentIdx = (genCurrentIdx + 1) % genImages.length; triggerGenLoop(); }, ms);
+    }
+
+    function buildCurBuffer(img, size, hX, hY) {
+        return new Promise((resolve) => {
+            const os = document.createElement('canvas'); os.width = size; os.height = size;
+            const oCtx = os.getContext('2d'); oCtx.drawImage(img, 0, 0, size, size);
+            os.toBlob((b) => {
+                const r = new FileReader(); r.onload = function(e) {
+                    const pngBuf = e.target.result; const pngLen = pngBuf.byteLength;
+                    const curBuffer = new ArrayBuffer(22 + pngLen); const view = new DataView(curBuffer);
+                    view.setUint16(0, 0, true); view.setUint16(2, 2, true); view.setUint16(4, 1, true);
+                    view.setUint8(6, size >= 256 ? 0 : size); view.setUint8(7, size >= 256 ? 0 : size);
+                    view.setUint16(10, hX, true); view.setUint16(12, hY, true);
+                    view.setUint32(14, pngLen, true); view.setUint32(18, 22, true);
+                    new Uint8Array(curBuffer).set(new Uint8Array(pngBuf), 22); resolve(new Uint8Array(curBuffer));
+                }; r.readAsArrayBuffer(b);
+            }, 'image/png');
+        });
+    }
+
+    function compileAniBuffer(curBytesArray, ms) {
+        const jiffies = Math.max(1, Math.round(ms / 16.6666)); const numFrames = curBytesArray.length;
+        let iconChunksSize = 0; const paddedFiles = curBytesArray.map(cur => { const p = cur.byteLength % 2; return { d: cur, len: cur.byteLength + p, hasPad: p > 0 }; });
+        paddedFiles.forEach(item => { iconChunksSize += 8 + item.len; });
+        const listSize = 4 + iconChunksSize; const riffSize = 4 + 44 + (8 + listSize);
+        const aniBuffer = new ArrayBuffer(8 + riffSize); const view = new DataView(aniBuffer);
+        writeString(view, 0, "RIFF"); view.setUint32(4, riffSize, true); writeString(view, 8, "ACON");
+        writeString(view, 12, "anih"); view.setUint32(16, 36, true); view.setUint32(20, 36, true);
+        view.setUint32(24, numFrames, true); view.setUint32(28, numFrames, true); view.setUint32(48, jiffies, true); view.setUint32(52, 1, true);
+        writeString(view, 56, "LIST"); view.setUint32(60, listSize, true); writeString(view, 64, "fram");
+        let offset = 68; const u8 = new Uint8Array(aniBuffer);
+        paddedFiles.forEach(item => {
+            writeString(view, offset, "icon"); view.setUint32(offset + 4, item.d.byteLength, true); offset += 8;
+            u8.set(item.d, offset); offset += item.d.byteLength; if (item.hasPad) { view.setUint8(offset, 0); offset += 1; }
+        }); return aniBuffer;
+    }
+
+    async function outputSingleCursor() {
+        if(!genImages.length) return; const size = parseInt(genSize.value); const hX = parseInt(genHX.value) || 0; const hY = parseInt(genHY.value) || 0;
+        const curBytesList = []; for(let img of genImages) curBytesList.push(await buildCurBuffer(img, size, hX, hY));
+        let finalBlob, finalExt;
+        if(genImages.length === 1) { finalBlob = new Blob([curBytesList[0]], {type: "application/octet-stream"}); finalExt = 'cur'; } 
+        else { const ms = parseInt(document.getElementById('genDuration').value) || 100; finalBlob = new Blob([compileAniBuffer(curBytesList, ms)], {type: "application/octet-stream"}); finalExt = 'ani'; }
+        const dlUrl = URL.createObjectURL(finalBlob); const a = document.createElement('a'); a.href = dlUrl; a.download = `custom_cursor.${finalExt}`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(dlUrl);
+    }
+
+    /* ================= Win11 網格打包器邏輯 ================= */
+    function initPackerGrid() {
+        const grid = document.getElementById('packGridContainer'); grid.innerHTML = '';
+        cursorSchemeMap.forEach(item => {
+            packDataStorage[item.key] = null;
+            const card = document.createElement('div');
+            card.className = 'win-card';
+            card.innerHTML = `
+                <div class="win-preview checkerboard">
+                    <img id="pPrevImg_${item.key}" src="" style="display:none;">
+                    <span id="pPrevText_${item.key}" style="font-size:11px; color:var(--text-muted);">(尚未配置)</span>
+                </div>
+                <div class="win-title">${item.name}</div>
+                <div class="win-actions">
+                    <button class="win-btn win-btn-primary" onclick="document.getElementById('pFile_${item.key}').click()">瀏覽</button>
+                    <button class="win-btn" onclick="resetPackItem('${item.key}')">重設</button>
+                    <input type="file" id="pFile_${item.key}" multiple accept=".png,.svg,.cur,.ani" style="display:none;" onchange="handlePackRowUpload(this.files, '${item.key}')">
+                </div>
+                <div class="win-settings" id="pSettings_${item.key}">
+                    <div class="win-settings-group">X: <input type="number" value="0" min="0" id="pX_${item.key}"></div>
+                    <div class="win-settings-group">Y: <input type="number" value="0" min="0" id="pY_${item.key}"></div>
+                    <div class="win-settings-group">⏱ <input type="number" value="100" min="16" step="16" id="pDur_${item.key}" onchange="updatePackPreviewSpeed('${item.key}')"></div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function parseCursorBuffer(buffer) {
+        const view = new DataView(buffer); let frames = []; let animationSteps = [];
+        let defaultJif = 0; let seqTable = []; let rateTable = [];
+        try {
+            if (readASCIIString(view, 0, 4) === 'RIFF' && readASCIIString(view, 8, 4) === 'ACON') {
+                let offset = 12;
+                while (offset < view.byteLength) {
+                    if (offset + 8 > view.byteLength) break;
+                    const chunkId = readASCIIString(view, offset, 4); const chunkSize = view.getUint32(offset + 4, true); offset += 8;
+                    const nextChunk = offset + chunkSize + (chunkSize % 2);
+                    if (chunkId === 'anih') { defaultJif = view.getUint32(offset + 28, true); } 
+                    else if (chunkId === 'seq ') { for(let i=0; i<chunkSize/4; i++) seqTable.push(view.getUint32(offset+(i*4), true)); } 
+                    else if (chunkId === 'rate') { for(let i=0; i<chunkSize/4; i++) rateTable.push(view.getUint32(offset+(i*4), true)); } 
+                    else if (chunkId === 'LIST' && readASCIIString(view, offset, 4) === 'fram') {
+                        let sub = offset + 4;
+                        while (sub < offset + chunkSize) {
+                            if (sub + 8 > offset + chunkSize) break;
+                            const sid = readASCIIString(view, sub, 4); const ssize = view.getUint32(sub + 4, true); sub += 8;
+                            if (sid === 'icon') frames.push(makeUrlFromChunk(buffer.slice(sub, sub + ssize)));
+                            sub += ssize + (ssize % 2);
+                        }
+                    } offset = nextChunk;
+                }
+                const stepsCount = seqTable.length > 0 ? seqTable.length : frames.length;
+                for (let i = 0; i < stepsCount; i++) {
+                    const fIdx = seqTable[i] !== undefined ? seqTable[i] : (i % frames.length);
+                    const jif = rateTable[i] !== undefined ? rateTable[i] : defaultJif;
+                    animationSteps.push({ url: frames[fIdx], dur: (jif || 1) * 16.6666 });
+                } return animationSteps;
+            } else if (view.getUint16(2, true) === 2) { return [{ url: makeUrlFromChunk(buffer), dur: 1000 }]; }
+        } catch (e) {} return [];
+    }
+
+    function startPackPreviewLoop(key) {
+        if (activeTimers[key]) clearTimeout(activeTimers[key]);
+        const data = packDataStorage[key]; const imgSlot = document.getElementById(`pPrevImg_${key}`);
+        if (!data || !imgSlot) return;
+
+        if (data.isRawCursor && data.steps && data.steps.length > 0) {
+            if(data.steps.length === 1) { imgSlot.src = data.steps[0].url; return; }
+            data.currentIdx = (data.currentIdx + 1) % data.steps.length;
+            const step = data.steps[data.currentIdx]; imgSlot.src = step.url;
+            activeTimers[key] = setTimeout(() => startPackPreviewLoop(key), step.dur);
+        } else if (!data.isRawCursor && data.images && data.images.length > 0) {
+            if(data.images.length === 1) { imgSlot.src = data.images[0].src; return; }
+            data.currentIdx = (data.currentIdx + 1) % data.images.length;
+            imgSlot.src = data.images[data.currentIdx].src;
+            const ms = parseInt(document.getElementById(`pDur_${key}`).value) || 100;
+            activeTimers[key] = setTimeout(() => startPackPreviewLoop(key), ms);
+        }
+    }
+
+    function updatePackPreviewSpeed(key) {
+        if(packDataStorage[key] && !packDataStorage[key].isRawCursor && packDataStorage[key].images.length > 1) {
+            startPackPreviewLoop(key); 
+        }
+    }
+
+    function handlePackRowUpload(files, key) {
+        if(!files.length) return; const file = files[0]; const ext = file.name.split('.').pop().toLowerCase();
+        if (activeTimers[key]) clearTimeout(activeTimers[key]);
+        if (packDataStorage[key] && packDataStorage[key].steps) { packDataStorage[key].steps.forEach(s => URL.revokeObjectURL(s.url)); }
+        document.getElementById(`pPrevText_${key}`).style.display = 'none';
+        const imgSlot = document.getElementById(`pPrevImg_${key}`); imgSlot.style.display = 'block';
+
+        if (ext === 'cur' || ext === 'ani') {
+            document.getElementById(`pSettings_${key}`).style.opacity = "0.2"; document.getElementById(`pSettings_${key}`).style.pointerEvents = "none";
+            const r = new FileReader(); r.onload = function(e) { 
+                const buffer = e.target.result; const steps = parseCursorBuffer(buffer);
+                packDataStorage[key] = { isRawCursor: true, buffer: buffer, ext: ext, steps: steps, currentIdx: -1 }; startPackPreviewLoop(key);
+            }; r.readAsArrayBuffer(file);
+        } else {
+            document.getElementById(`pSettings_${key}`).style.opacity = "1"; document.getElementById(`pSettings_${key}`).style.pointerEvents = "auto";
+            let loaded = 0; const fileArr = Array.from(files).sort((a,b)=>a.name.localeCompare(b.name)); const imgList = new Array(fileArr.length);
+            fileArr.forEach((f, index) => {
+                const r = new FileReader(); r.onload = function(ev) {
+                    const img = new Image(); img.onload = function() {
+                        imgList[index] = img; loaded++; 
+                        if(loaded === fileArr.length) { packDataStorage[key] = { isRawCursor: false, images: imgList, currentIdx: -1 }; startPackPreviewLoop(key); }
+                    }; img.src = ev.target.result;
+                }; r.readAsDataURL(f);
+            });
+        }
+    }
+
+    function resetPackItem(key) {
+        if(activeTimers[key]) clearTimeout(activeTimers[key]);
+        if (packDataStorage[key] && packDataStorage[key].steps) { packDataStorage[key].steps.forEach(s => URL.revokeObjectURL(s.url)); }
+        packDataStorage[key] = null;
+        document.getElementById(`pPrevText_${key}`).style.display = 'inline';
+        const imgSlot = document.getElementById(`pPrevImg_${key}`); imgSlot.style.display = 'none'; imgSlot.src = '';
+        document.getElementById(`pFile_${key}`).value = '';
+        document.getElementById(`pSettings_${key}`).style.opacity = "1"; document.getElementById(`pSettings_${key}`).style.pointerEvents = "auto";
+        document.getElementById(`pX_${key}`).value = "0"; document.getElementById(`pY_${key}`).value = "0"; document.getElementById(`pDur_${key}`).value = "100";
+    }
+
+    function makeUrlFromChunk(buf) { const v = new DataView(buf); if (v.byteLength > 26 && v.getUint8(22) === 0x89 && v.getUint8(23) === 0x50) { return URL.createObjectURL(new Blob([buf.slice(22)], {type: 'image/png'})); } return URL.createObjectURL(new Blob([buf], {type: 'image/x-icon'})); }
+
+    async function exportFullZipPack() {
+        const schemeName = document.getElementById('packSchemeName').value.trim().replace(/[^a-zA-Z0-9]/g, "") || "CustomTheme";
+        const zip = new JSZip(); let hasAnyFile = false; let batRegistryBody = "";
+
+        for(let item of cursorSchemeMap) {
+            const packItem = packDataStorage[item.key];
+            if(packItem) {
+                hasAnyFile = true; let fileBuffer, ext;
+                if (packItem.isRawCursor) { fileBuffer = packItem.buffer; ext = packItem.ext; } 
+                else if (packItem.images && packItem.images.length > 0) {
+                    const hX = parseInt(document.getElementById(`pX_${item.key}`).value) || 0; const hY = parseInt(document.getElementById(`pY_${item.key}`).value) || 0; const curBytesList = [];
+                    for(let img of packItem.images) curBytesList.push(await buildCurBuffer(img, 32, hX, hY));
+                    if(packItem.images.length === 1) { fileBuffer = curBytesList[0]; ext = 'cur'; } else { const ms = parseInt(document.getElementById(`pDur_${item.key}`).value) || 100; fileBuffer = compileAniBuffer(curBytesList, ms); ext = 'ani'; }
+                } else { continue; }
+
+                const finalFileName = `${item.key}.${ext}`;
+                zip.file(`${schemeName}/${finalFileName}`, fileBuffer);
+                batRegistryBody += `    reg add "HKCU\\Control Panel\\Cursors" /v "${item.key}" /t REG_EXPAND_SZ /d "%%LOCALAPPDATA%%\\CustomCursors\\%%SCHEME_NAME%%\\${finalFileName}" /f >nul\n`;
+            }
+        }
+
+        if(!hasAnyFile) { alert('操作終止：你必須至少在一個狀態中部署圖檔才能進行封裝！'); return; }
+
+        const advancedInstallBat = `@echo off\n` +
+            `pushd "%~dp0"\n\n` +
+            `for %%I in ("%~dp0.") do set "SCHEME_NAME=%%~nxI"\n\n` +
+            `set "TARGET_DIR=%LOCALAPPDATA%\\CustomCursors\\%SCHEME_NAME%"\n` +
+            `if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"\n` +
+            `copy /Y *.cur "%TARGET_DIR%\\" >nul 2>&1\n` +
+            `copy /Y *.ani "%TARGET_DIR%\\" >nul 2>&1\n\n` +
+            `reg add "HKCU\\Control Panel\\Cursors" /ve /t REG_SZ /d "%SCHEME_NAME%" /f >nul\n` +
+            `reg add "HKCU\\Control Panel\\Cursors" /v "Scheme Source" /t REG_DWORD /d 1 /f >nul\n` +
+            batRegistryBody + `\n` +
+            `powershell -NoProfile -Command "Add-Type -MemberDefinition '[DllImport(\\"user32.dll\\")]public static extern bool SystemParametersInfo(int u,int p,string l,int f);' -Name 'W' -Namespace 'S'; [S.W]::SystemParametersInfo(87,0,$null,0)" >nul 2>&1\n\n` +
+            `echo ====================================================\n` +
+            `echo   Installation Successful! Theme applied.\n` +
+            `echo ====================================================\n` +
+            `pause\n`;
+
+        zip.file(`${schemeName}/Install.bat`, advancedInstallBat);
+        zip.generateAsync({type:"blob"}).then((content) => {
+            const url = URL.createObjectURL(content); const a = document.createElement('a'); a.href = url; a.download = `${schemeName}_CursorTheme.zip`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        });
+    }
+
+    /* ================= 系統還原 ================= */
+    function downloadRestoreBat() {
+        const bat = `@echo off\n` +
+            `reg add "HKCU\\Control Panel\\Cursors" /ve /t REG_SZ /d "Windows Default" /f >nul\n` +
+            `reg add "HKCU\\Control Panel\\Cursors" /v "Scheme Source" /t REG_DWORD /d 1 /f >nul\n` +
+            `for %%v in (Arrow Help AppStarting Wait Crosshair IBeam NWPen No SizeNS SizeWE SizeNWSE SizeNESW SizeAll UpArrow Hand Pin Person) do (\n` +
+            `    reg delete "HKCU\\Control Panel\\Cursors" /v "%%v" /f >nul 2>&1\n` +
+            `)\n` +
+            `powershell -NoProfile -Command "Add-Type -MemberDefinition '[DllImport(\\"user32.dll\\")]public static extern bool SystemParametersInfo(int u,int p,string l,int f);' -Name 'W' -Namespace 'S'; [S.W]::SystemParametersInfo(87,0,$null,0)" >nul 2>&1\n` +
+            `echo Cursors restored to Windows Default.\n` +
+            `pause\n`;
+        const blob = new Blob([bat], {type: "application/octet-stream"}); const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = "RestoreDefaultCursors.bat";
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    }
+
+    function writeString(view, offset, str) { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); }
+    function readASCIIString(view, offset, length) { let str = ''; for (let i = 0; i < length; i++) { str += String.fromCharCode(view.getUint8(offset + i)); } return str; }
+
+    window.onload = function() { initPackerGrid(); };
+</script>
+</body>
+</html>
