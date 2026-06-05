@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>Pixel Art Converter</title>
+    <style>
+        body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: sans-serif; }
+        canvas { image-rendering: pixelated; border: 4px solid #4a3728; background: #c6e2e9; width: 640px; }
+        .controls { margin: 20px; }
+    </style>
+</head>
+<body>
+
+    <h2>像素動畫轉換器</h2>
+    <input type="file" id="uploader" accept="video/*">
+    
+    <div class="controls">
+        <button id="processBtn">轉換並預覽</button>
+        <button id="recordBtn">開始錄製 (WebM)</button>
+    </div>
+
+    <canvas id="canvas" width="640" height="360"></canvas>
+
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+    <script>
+        const { createFFmpeg, fetchFile } = FFmpeg;
+        const ffmpeg = createFFmpeg({ log: true });
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let video = document.createElement('video');
+        let recorder;
+        let chunks = [];
+
+        async function initFFmpeg() { await ffmpeg.load(); }
+        initFFmpeg();
+
+        document.getElementById('processBtn').onclick = async () => {
+            const file = document.getElementById('uploader').files[0];
+            await ffmpeg.write('input.mp4', await fetchFile(file));
+            
+            // 像素化濾鏡：縮小解析度後放大，並確保最近鄰插值
+            await ffmpeg.run('-i', 'input.mp4', '-vf', 'scale=64:36:flags=neighbor,scale=640:360:flags=neighbor', 'output.mp4');
+            
+            const data = ffmpeg.read('output.mp4');
+            video.src = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+            video.play();
+            video.onplay = () => { draw(); };
+        };
+
+        function draw() {
+            if (video.paused || video.ended) return;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            requestAnimationFrame(draw);
+        }
+
+        document.getElementById('recordBtn').onclick = () => {
+            const stream = canvas.captureStream(30);
+            recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+            recorder.ondataavailable = e => chunks.push(e.data);
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'pixel_animation.webm';
+                a.click();
+            };
+            recorder.start();
+            setTimeout(() => recorder.stop(), 5000); // 錄製 5 秒
+        };
+    </script>
+</body>
+</html>
