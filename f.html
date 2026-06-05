@@ -1,307 +1,456 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>互動式像素影片編輯器</title>
+    <title>專業多軌混音工作站</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #121212;
-            color: #ffffff;
-            margin: 0;
-            padding: 20px;
+        :root {
+            --mint-light: #e0f2e9;
+            --mint-main: #a3e4d7;
+            --mint-dark: #8ed6c8;
+            --choco-main: #4e342e;
+            --choco-light: #6d4c41;
+            --choco-dark: #3e2723;
+            /* 1秒 = 200px, 所以 0.1秒 = 20px */
+            --pps: 200px; 
+            --grid-minor: 20px;
+        }
+
+        html, body {
+            margin: 0; padding: 0;
+            width: 100vw; height: 100vh;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: #eceff1;
+            display: flex; flex-direction: column;
+            overflow: hidden; /* 鎖死外層，內部滾動 */
+        }
+
+        /* 頂部工具列 */
+        .toolbar {
+            background-color: var(--choco-main);
+            color: var(--mint-light);
+            padding: 12px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            z-index: 50;
+        }
+
+        .toolbar-group { display: flex; align-items: center; gap: 15px; }
+        h1 { margin: 0; font-size: 18px; color: var(--mint-main); }
+        input[type="file"] { display: none; }
+
+        .btn {
+            background-color: var(--mint-main); color: var(--choco-dark);
+            border: none; padding: 8px 16px; border-radius: 6px;
+            cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s;
+        }
+        .btn:hover { background-color: var(--mint-dark); }
+        .btn:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+
+        /* 工作區佈局 (左側標題區 + 右側時間軸區) */
+        .workspace {
+            flex: 1;
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            overflow: hidden; /* 防止超出 */
+            position: relative;
         }
-        .container {
-            max-width: 800px;
-            width: 100%;
-            text-align: center;
+
+        /* 左側軌道控制面板 */
+        .sidebar {
+            width: 200px;
+            background-color: var(--mint-light);
+            border-right: 2px solid var(--choco-main);
+            overflow-y: hidden; /* 跟隨右側同步滾動 */
+            display: flex; flex-direction: column;
+            z-index: 10;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
         }
-        .canvas-container {
-            margin: 20px 0;
-            background-color: #000;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            display: inline-block;
-            max-width: 100%;
+
+        .sidebar-track {
+            height: 140px; /* 固定軌道高度 */
+            border-bottom: 2px solid var(--choco-main);
+            padding: 10px;
+            box-sizing: border-box;
+            display: flex; flex-direction: column; justify-content: center; gap: 8px;
         }
-        canvas {
-            display: block;
-            max-width: 100%;
-            height: auto;
+
+        .track-name { font-size: 12px; font-weight: bold; color: var(--choco-dark); word-break: break-all; }
+        .btn-danger { background-color: #e57373; color: white; border: none; padding: 5px; border-radius: 4px; cursor: pointer; font-size: 12px;}
+        .btn-danger:hover { background-color: #ef5350; }
+
+        /* 右側時間軸滾動視窗 */
+        .timeline-viewport {
+            flex: 1;
+            overflow-x: auto; /* 允許橫向滾動 */
+            overflow-y: auto; /* 允許垂直滾動 */
+            position: relative;
+            background-color: #fff;
         }
-        .controls {
-            background-color: #1e1e1e;
-            padding: 20px;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
+
+        /* 實際的時間軸容器 (寬度會動態變大) */
+        .timeline-container {
+            position: relative;
+            min-height: 100%;
+            /* 預設寬度，稍後會由 JS 根據音檔長度撐開 */
+            width: 1000px; 
         }
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 5px;
+
+        /* 背景網格 (大格1秒，小格0.1秒) */
+        .timeline-grid {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                linear-gradient(to right, rgba(78,52,46,0.3) 1px, transparent 1px),
+                linear-gradient(to right, rgba(78,52,46,0.08) 1px, transparent 1px);
+            background-size: var(--pps) 100%, var(--grid-minor) 100%;
+            pointer-events: none; /* 不干擾點擊 */
+            z-index: 0;
         }
-        label {
-            font-size: 14px;
-            color: #aaa;
+
+        /* 右側波形軌道列 */
+        .timeline-track-row {
+            height: 140px;
+            border-bottom: 2px solid var(--choco-light);
+            position: relative;
+            box-sizing: border-box;
         }
-        input[type="range"] {
-            width: 100%;
-        }
-        .btn-group {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 10px;
-        }
-        button, .file-label {
-            background-color: #3b82f6;
-            color: white;
-            border: none;
-            padding: 10px 20px;
+
+        /* 音訊片段 (Clip) - 核心定位對象 */
+        .audio-clip {
+            position: absolute; /* 絕對定位，不被擠壓 */
+            top: 10px;
+            height: 120px;
+            background-color: rgba(163, 228, 215, 0.2);
+            border: 1px solid var(--mint-main);
             border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.2s;
+            display: flex; flex-direction: column;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            /* width 和 left 會由 JS 控制 */
         }
-        button:hover, .file-label:hover {
-            background-color: #2563eb;
+
+        /* Clip 上方的拖拉把手 */
+        .clip-handle {
+            height: 20px;
+            background-color: var(--choco-light);
+            color: var(--mint-light);
+            font-size: 12px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: grab;
+            user-select: none;
+            border-radius: 3px 3px 0 0;
         }
-        button:disabled {
-            background-color: #4b5563;
-            cursor: not-allowed;
+        .clip-handle:active { cursor: grabbing; background-color: var(--choco-dark); }
+
+        /* 裝載 WaveSurfer 的容器 */
+        .clip-waveform {
+            flex: 1;
+            width: 100%;
+            position: relative;
         }
-        #recordBtn.recording {
-            background-color: #ef4444;
-            animation: pulse 1.5s infinite;
-        }
-        #uploadInput {
-            display: none;
-        }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.6; }
-            100% { opacity: 1; }
-        }
-        #status {
-            font-size: 14px;
-            color: #10b981;
-            margin-top: 5px;
-        }
+
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>像素影片即時編輯與錄製工具</h2>
-    
-    <div class="controls">
-        <div class="control-group">
-            <label>1. 選擇影片檔案：</label>
-            <label for="uploadInput" class="file-label">上傳影片</label>
-            <input type="file" id="uploadInput" accept="video/*">
-            <span id="fileName">尚未選擇檔案</span>
-        </div>
-
-        <div class="control-group">
-            <label id="pixelLabel">2. 像素大小 (Pixel Size): 10px</label>
-            <input type="range" id="pixelSlider" min="1" max="50" value="10" disabled>
-        </div>
-
-        <div class="btn-group">
-            <button id="playBtn" disabled>播放 / 暫停</button>
-            <button id="recordBtn" disabled>開始錄製</button>
-        </div>
-        <div id="status"></div>
+<div class="toolbar">
+    <div class="toolbar-group">
+        <h1>多軌混音工作站</h1>
+        <label class="btn" style="background-color: var(--mint-light);">
+            <input type="file" id="audio-upload" accept="audio/*" multiple>
+            📁 新增音軌
+        </label>
     </div>
 
-    <div class="canvas-container">
-        <video id="videoElement" style="display:none;" loop crossorigin="anonymous"></video>
-        <canvas id="outputCanvas"></canvas>
+    <div class="toolbar-group">
+        <button id="export-btn" class="btn">💾 照時間軸混音並輸出 WAV</button>
     </div>
 </div>
 
-<script>
-    const video = document.getElementById('videoElement');
-    const canvas = document.getElementById('outputCanvas');
-    const ctx = canvas.getContext('2d');
+<div class="workspace">
+    <div class="sidebar" id="sidebar"></div>
     
-    const uploadInput = document.getElementById('uploadInput');
-    const fileNameText = document.getElementById('fileName');
-    const pixelSlider = document.getElementById('pixelSlider');
-    const pixelLabel = document.getElementById('pixelLabel');
-    const playBtn = document.getElementById('playBtn');
-    const recordBtn = document.getElementById('recordBtn');
-    const statusText = document.getElementById('status');
+    <div class="timeline-viewport" id="viewport">
+        <div class="timeline-container" id="timeline">
+            <div class="timeline-grid"></div>
+            <div id="tracks-content"></div>
+        </div>
+    </div>
+</div>
 
-    let animationFrameId;
-    let mediaRecorder;
-    let recordedChunks = [];
-    let isRecording = false;
+<script type="module">
+    import WaveSurfer from 'https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.esm.js';
+    import EnvelopePlugin from 'https://unpkg.com/wavesurfer.js@7/dist/plugins/envelope.esm.js';
 
-    // 1. 處理影片上傳
-    uploadInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const sidebar = document.getElementById('sidebar');
+    const tracksContent = document.getElementById('tracks-content');
+    const timeline = document.getElementById('timeline');
+    const viewport = document.getElementById('viewport');
+    
+    // 全域設定：1秒鐘 = 200px
+    const PIXELS_PER_SECOND = 200; 
+    let tracks = []; 
 
-        fileNameText.textContent = file.name;
-        const fileURL = URL.createObjectURL(file);
-        video.src = fileURL;
+    // 同步左右兩側的垂直滾動
+    viewport.addEventListener('scroll', () => {
+        sidebar.scrollTop = viewport.scrollTop;
+    });
+
+    // 動態更新時間軸總寬度 (最長音軌 + 2秒)
+    function updateTimelineWidth() {
+        if (tracks.length === 0) {
+            timeline.style.width = '100%';
+            return;
+        }
+        // 找出 (起點 offset + 音檔本身長度) 的最大值
+        const maxTime = tracks.reduce((max, t) => Math.max(max, t.offset + t.duration), 0);
+        const totalSeconds = maxTime + 2; // 多留 2 秒空白
         
-        statusText.textContent = "正在載入影片...";
+        // 算出對應的像素寬度
+        const calculatedWidth = totalSeconds * PIXELS_PER_SECOND;
         
-        video.onloadedmetadata = () => {
-            // 畫布尺寸完全設為影片原始尺寸
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            
-            // 啟用控制項
-            pixelSlider.disabled = false;
-            playBtn.disabled = false;
-            recordBtn.disabled = false;
-            
-            statusText.textContent = `影片載入成功 (${video.videoWidth}x${video.videoHeight})`;
-            
-            // 繪製第一格畫面
-            pixelateFrame();
+        // 確保至少填滿畫面，避免縮圖破圖
+        const minWidth = viewport.clientWidth;
+        timeline.style.width = `${Math.max(calculatedWidth, minWidth)}px`;
+    }
+
+    // 處理上傳檔案
+    document.getElementById('audio-upload').addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
+
+        for (const file of files) {
+            await addTrack(file);
+        }
+        e.target.value = ''; 
+    });
+
+    async function addTrack(file) {
+        const trackId = 'track_' + Date.now() + Math.floor(Math.random() * 1000);
+        
+        const arrayBuffer = await file.arrayBuffer();
+        const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        const duration = decodedBuffer.duration;
+        
+        // 新音軌預設放在 0 秒處
+        const initialOffset = 0; 
+        // 實體長度計算 (絕對不會被擠壓)
+        const clipWidthPx = duration * PIXELS_PER_SECOND;
+
+        /* --- 左側控制面板 --- */
+        const sidebarRow = document.createElement('div');
+        sidebarRow.className = 'sidebar-track';
+        sidebarRow.innerHTML = `
+            <div class="track-name" title="${file.name}">${file.name}</div>
+            <div style="font-size: 11px; color: #666;">長度: ${duration.toFixed(2)}s</div>
+            <button class="btn-danger" onclick="removeTrack('${trackId}')">🗑️ 刪除</button>
+        `;
+        sidebar.appendChild(sidebarRow);
+
+        /* --- 右側時間軸軌道 --- */
+        const trackRow = document.createElement('div');
+        trackRow.className = 'timeline-track-row';
+
+        // 獨立音訊片段 (Clip)
+        const clip = document.createElement('div');
+        clip.className = 'audio-clip';
+        clip.style.width = `${clipWidthPx}px`;
+        clip.style.left = `${initialOffset * PIXELS_PER_SECOND}px`;
+
+        // 拖拉把手 (Studio One 風格)
+        const dragHandle = document.createElement('div');
+        dragHandle.className = 'clip-handle';
+        dragHandle.textContent = '⋮⋮ 左右拖拉移動位置 ⋮⋮';
+        
+        // 波形容器
+        const wsContainer = document.createElement('div');
+        wsContainer.className = 'clip-waveform';
+
+        clip.appendChild(dragHandle);
+        clip.appendChild(wsContainer);
+        trackRow.appendChild(clip);
+        tracksContent.appendChild(trackRow);
+
+        // 初始化 WaveSurfer
+        const ws = WaveSurfer.create({
+            container: wsContainer,
+            waveColor: '#a3e4d7',
+            progressColor: '#4e342e',
+            cursorColor: '#d32f2f',
+            height: 'auto', // 填滿 wsContainer
+            normalize: true,
+            interact: false // 關閉點擊跳轉，避免與拖拉衝突
+        });
+
+        const envelope = ws.registerPlugin(EnvelopePlugin.create({
+            volume: 1,
+            lineColor: 'rgba(78, 52, 46, 0.8)',
+            lineWidth: 3, dragPointSize: 12, dragLine: true, dragPoint: true,
+        }));
+
+        const trackData = {
+            id: trackId,
+            sidebarRow: sidebarRow,
+            trackRow: trackRow,
+            clipElement: clip,
+            wavesurfer: ws,
+            buffer: decodedBuffer,
+            duration: duration,
+            offset: initialOffset,
+            envelopePoints: []
         };
-    });
 
-    // 2. 像素化渲染核心邏輯
-    function pixelateFrame() {
-        if (video.paused || video.ended) {
-            // 如果暫停了，依然維持畫面
-            drawPixelated();
-            return;
-        }
+        envelope.on('points-change', (points) => trackData.envelopePoints = points);
 
-        drawPixelated();
-        animationFrameId = requestAnimationFrame(pixelateFrame);
+        // 載入波形
+        ws.load(URL.createObjectURL(file));
+        tracks.push(trackData);
+        
+        // 更新畫布寬度
+        updateTimelineWidth();
+
+        /* --- 拖拉排程邏輯 (Drag & Drop) --- */
+        let isDragging = false;
+        let startX = 0;
+        let startLeft = 0;
+
+        dragHandle.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            // 取得目前的 left 像素值
+            startLeft = parseFloat(clip.style.left) || 0;
+            document.body.style.cursor = 'grabbing';
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const deltaX = e.clientX - startX;
+            let newLeft = startLeft + deltaX;
+            
+            // 限制不能拖到 0 秒之前
+            if (newLeft < 0) newLeft = 0;
+            
+            clip.style.left = `${newLeft}px`;
+            // 更新真實秒數 offset
+            trackData.offset = newLeft / PIXELS_PER_SECOND;
+            
+            // 拖拉時即時更新總畫布寬度
+            updateTimelineWidth();
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                document.body.style.cursor = 'default';
+            }
+        });
     }
 
-    function drawPixelated() {
-        const pixelSize = parseInt(pixelSlider.value);
-        const w = canvas.width;
-        const h = canvas.height;
-
-        if (pixelSize <= 1) {
-            // 如果像素大小為 1，直接畫原圖
-            ctx.drawImage(video, 0, 0, w, h);
-            return;
+    // 刪除軌道
+    window.removeTrack = function(trackId) {
+        const index = tracks.findIndex(t => t.id === trackId);
+        if (index > -1) {
+            tracks[index].wavesurfer.destroy();
+            tracks[index].sidebarRow.remove();
+            tracks[index].trackRow.remove();
+            tracks.splice(index, 1);
+            updateTimelineWidth();
         }
-
-        // 計算縮小後的暫存尺寸
-        const scaledW = Math.max(1, Math.floor(w / pixelSize));
-        const scaledH = Math.max(1, Math.floor(h / pixelSize));
-
-        // 關閉影像平滑（關鍵：防止模糊，產生硬邊像素格）
-        ctx.imageSmoothingEnabled = false;
-        ctx.mozImageSmoothingEnabled = false;
-        ctx.webkitImageSmoothingEnabled = false;
-        ctx.msImageSmoothingEnabled = false;
-
-        // 步驟 A: 將大影片縮小畫到 Canvas 上
-        ctx.drawImage(video, 0, 0, scaledW, scaledH);
-        
-        // 步驟 B: 把剛才縮小的畫面，重新放大拉伸填滿整個畫布
-        ctx.drawImage(canvas, 0, 0, scaledW, scaledH, 0, 0, w, h);
     }
 
-    // 3. 滑桿控制
-    pixelSlider.addEventListener('input', (e) => {
-        pixelLabel.textContent = `2. 像素大小 (Pixel Size): ${e.target.value}px`;
-        if (video.paused) {
-            drawPixelated(); // 暫停時調整滑桿也能即時看到效果
-        }
-    });
+    // 核心：照時間軸混音編譯輸出
+    document.getElementById('export-btn').addEventListener('click', async () => {
+        if (tracks.length === 0) return alert('請至少上傳一條音軌');
 
-    // 4. 播放控制
-    playBtn.addEventListener('click', () => {
-        if (video.paused) {
-            video.play();
-            pixelateFrame();
-        } else {
-            video.pause();
-            cancelAnimationFrame(animationFrameId);
-        }
-    });
-
-    // 5. 錄製與導出邏輯 (MediaRecorder)
-    recordBtn.addEventListener('click', () => {
-        if (!isRecording) {
-            startRecording();
-        } else {
-            stopRecording();
-        }
-    });
-
-    function startRecording() {
-        recordedChunks = [];
-        // 從 Canvas 擷取畫面串流 (預設跟隨瀏覽器渲染格率，或指定 30fps)
-        const stream = canvas.captureStream(30); 
-        
-        // 偵測瀏覽器支援的編碼格式 (優先使用 webm，因為支援度在 Canvas 錄製中最高)
-        let options = { mimeType: 'video/webm;codecs=vp9' };
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-            options = { mimeType: 'video/webm;codecs=vp8' };
-        }
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-            options = { mimeType: 'video/webm' };
-        }
+        const btn = document.getElementById('export-btn');
+        btn.textContent = '⏳ 照時間軸編譯中...';
+        btn.disabled = true;
 
         try {
-            mediaRecorder = new MediaRecorder(stream, options);
-        } catch (e) {
-            console.error("不支援此錄製格式，嘗試預設格式", e);
-            mediaRecorder = new MediaRecorder(stream);
+            // 計算輸出檔總長度 (含使用者拖拉的 Offset)
+            const maxDuration = tracks.reduce((max, t) => Math.max(max, t.offset + t.duration), 0) + 2;
+            const sampleRate = 44100;
+            const offlineCtx = new OfflineAudioContext(2, Math.ceil(maxDuration * sampleRate), sampleRate);
+
+            tracks.forEach(track => {
+                const source = offlineCtx.createBufferSource();
+                source.buffer = track.buffer;
+                const gainNode = offlineCtx.createGain();
+
+                // 套用音量節點 (Envelope)
+                if (track.envelopePoints && track.envelopePoints.length > 0) {
+                    const sortedPoints = [...track.envelopePoints].sort((a, b) => a.time - b.time);
+                    
+                    // 注意：Envelope 的時間是「相對於該音軌起點」，所以編譯時要加上 track.offset
+                    const startTime = track.offset;
+
+                    if (sortedPoints[0].time > 0) gainNode.gain.setValueAtTime(1, startTime);
+                    else gainNode.gain.setValueAtTime(sortedPoints[0].volume, startTime);
+
+                    sortedPoints.forEach(p => {
+                        gainNode.gain.linearRampToValueAtTime(p.volume, startTime + p.time);
+                    });
+
+                    const lastVol = sortedPoints[sortedPoints.length - 1].volume;
+                    gainNode.gain.setValueAtTime(lastVol, startTime + track.duration);
+                } else {
+                    gainNode.gain.setValueAtTime(1, 0);
+                }
+
+                source.connect(gainNode);
+                gainNode.connect(offlineCtx.destination);
+                
+                // 關鍵：依照拖拉排程的時間點 (offset) 開始播放
+                source.start(track.offset);
+            });
+
+            const renderedBuffer = await offlineCtx.startRendering();
+            const wavBlob = audioBufferToWav(renderedBuffer);
+            
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(wavBlob);
+            downloadLink.download = 'Studio_Mixdown.wav';
+            downloadLink.click();
+
+        } catch (error) {
+            console.error(error);
+            alert('編譯失敗，請查看 Console。');
+        } finally {
+            btn.textContent = '💾 照時間軸混音並輸出 WAV';
+            btn.disabled = false;
         }
+    });
 
-        mediaRecorder.ondataavailable = (e) => {
-            if (e.data && e.data.size > 0) {
-                recordedChunks.push(e.data);
+    // 轉 WAV 格式演算法
+    function audioBufferToWav(buffer) {
+        const numOfChan = buffer.numberOfChannels;
+        const length = buffer.length * numOfChan * 2 + 44;
+        const arrayBuffer = new ArrayBuffer(length);
+        const view = new DataView(arrayBuffer);
+        const channels = [];
+        let offset = 0, pos = 0;
+
+        const setUint16 = (data) => { view.setUint16(pos, data, true); pos += 2; };
+        const setUint32 = (data) => { view.setUint32(pos, data, true); pos += 4; };
+        
+        setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157);
+        setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
+        setUint32(buffer.sampleRate); setUint32(buffer.sampleRate * 2 * numOfChan);
+        setUint16(numOfChan * 2); setUint16(16); setUint32(0x61746164); setUint32(length - pos - 4);
+
+        for(let i = 0; i < numOfChan; i++) channels.push(buffer.getChannelData(i));
+
+        while(pos < length) {
+            for(let i = 0; i < numOfChan; i++) {
+                let sample = Math.max(-1, Math.min(1, channels[i][offset]));
+                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                view.setInt16(pos, sample, true); pos += 2;
             }
-        };
-
-        mediaRecorder.onstop = () => {
-            // 錄製停止，包裝成檔案並自動下載
-            const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            // 根據錄製格式決定副檔名 (.webm 或擴充成 .mp4)
-            const ext = mediaRecorder.mimeType.includes('mp4') ? 'mp4' : 'webm';
-            a.download = `pixelated_video.${ext}`;
-            document.body.appendChild(a);
-            a.click();
-            
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            statusText.textContent = "導出成功！檔案已下載。";
-        };
-
-        mediaRecorder.start();
-        isRecording = true;
-        recordBtn.textContent = "停止錄製";
-        recordBtn.classList.add('recording');
-        statusText.textContent = "正在錄製畫布畫面...（請保持影片播放中）";
-    }
-
-    function stopRecording() {
-        mediaRecorder.stop();
-        isRecording = false;
-        recordBtn.textContent = "開始錄製";
-        recordBtn.classList.remove('recording');
-        statusText.textContent = "正在生成影片檔案...";
+            offset++;
+        }
+        return new Blob([arrayBuffer], {type: "audio/wav"});
     }
 </script>
-
 </body>
 </html>
