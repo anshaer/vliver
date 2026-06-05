@@ -1,72 +1,307 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Pixel Art Converter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動式像素影片編輯器</title>
     <style>
-        body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: sans-serif; }
-        canvas { image-rendering: pixelated; border: 4px solid #4a3728; background: #c6e2e9; width: 640px; }
-        .controls { margin: 20px; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        .canvas-container {
+            margin: 20px 0;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            display: inline-block;
+            max-width: 100%;
+        }
+        canvas {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+        .controls {
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 5px;
+        }
+        label {
+            font-size: 14px;
+            color: #aaa;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        button, .file-label {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover, .file-label:hover {
+            background-color: #2563eb;
+        }
+        button:disabled {
+            background-color: #4b5563;
+            cursor: not-allowed;
+        }
+        #recordBtn.recording {
+            background-color: #ef4444;
+            animation: pulse 1.5s infinite;
+        }
+        #uploadInput {
+            display: none;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+        #status {
+            font-size: 14px;
+            color: #10b981;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
 
-    <h2>像素動畫轉換器</h2>
-    <input type="file" id="uploader" accept="video/*">
+<div class="container">
+    <h2>像素影片即時編輯與錄製工具</h2>
     
     <div class="controls">
-        <button id="processBtn">轉換並預覽</button>
-        <button id="recordBtn">開始錄製 (WebM)</button>
+        <div class="control-group">
+            <label>1. 選擇影片檔案：</label>
+            <label for="uploadInput" class="file-label">上傳影片</label>
+            <input type="file" id="uploadInput" accept="video/*">
+            <span id="fileName">尚未選擇檔案</span>
+        </div>
+
+        <div class="control-group">
+            <label id="pixelLabel">2. 像素大小 (Pixel Size): 10px</label>
+            <input type="range" id="pixelSlider" min="1" max="50" value="10" disabled>
+        </div>
+
+        <div class="btn-group">
+            <button id="playBtn" disabled>播放 / 暫停</button>
+            <button id="recordBtn" disabled>開始錄製</button>
+        </div>
+        <div id="status"></div>
     </div>
 
-    <canvas id="canvas" width="640" height="360"></canvas>
+    <div class="canvas-container">
+        <video id="videoElement" style="display:none;" loop crossorigin="anonymous"></video>
+        <canvas id="outputCanvas"></canvas>
+    </div>
+</div>
 
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
-    <script>
-        const { createFFmpeg, fetchFile } = FFmpeg;
-        const ffmpeg = createFFmpeg({ log: true });
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        let video = document.createElement('video');
-        let recorder;
-        let chunks = [];
+<script>
+    const video = document.getElementById('videoElement');
+    const canvas = document.getElementById('outputCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const uploadInput = document.getElementById('uploadInput');
+    const fileNameText = document.getElementById('fileName');
+    const pixelSlider = document.getElementById('pixelSlider');
+    const pixelLabel = document.getElementById('pixelLabel');
+    const playBtn = document.getElementById('playBtn');
+    const recordBtn = document.getElementById('recordBtn');
+    const statusText = document.getElementById('status');
 
-        async function initFFmpeg() { await ffmpeg.load(); }
-        initFFmpeg();
+    let animationFrameId;
+    let mediaRecorder;
+    let recordedChunks = [];
+    let isRecording = false;
 
-        document.getElementById('processBtn').onclick = async () => {
-            const file = document.getElementById('uploader').files[0];
-            await ffmpeg.write('input.mp4', await fetchFile(file));
+    // 1. 處理影片上傳
+    uploadInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        fileNameText.textContent = file.name;
+        const fileURL = URL.createObjectURL(file);
+        video.src = fileURL;
+        
+        statusText.textContent = "正在載入影片...";
+        
+        video.onloadedmetadata = () => {
+            // 畫布尺寸完全設為影片原始尺寸
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
             
-            // 像素化濾鏡：縮小解析度後放大，並確保最近鄰插值
-            await ffmpeg.run('-i', 'input.mp4', '-vf', 'scale=64:36:flags=neighbor,scale=640:360:flags=neighbor', 'output.mp4');
+            // 啟用控制項
+            pixelSlider.disabled = false;
+            playBtn.disabled = false;
+            recordBtn.disabled = false;
             
-            const data = ffmpeg.read('output.mp4');
-            video.src = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-            video.play();
-            video.onplay = () => { draw(); };
+            statusText.textContent = `影片載入成功 (${video.videoWidth}x${video.videoHeight})`;
+            
+            // 繪製第一格畫面
+            pixelateFrame();
         };
+    });
 
-        function draw() {
-            if (video.paused || video.ended) return;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            requestAnimationFrame(draw);
+    // 2. 像素化渲染核心邏輯
+    function pixelateFrame() {
+        if (video.paused || video.ended) {
+            // 如果暫停了，依然維持畫面
+            drawPixelated();
+            return;
         }
 
-        document.getElementById('recordBtn').onclick = () => {
-            const stream = canvas.captureStream(30);
-            recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-            recorder.ondataavailable = e => chunks.push(e.data);
-            recorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'video/webm' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = 'pixel_animation.webm';
-                a.click();
-            };
-            recorder.start();
-            setTimeout(() => recorder.stop(), 5000); // 錄製 5 秒
+        drawPixelated();
+        animationFrameId = requestAnimationFrame(pixelateFrame);
+    }
+
+    function drawPixelated() {
+        const pixelSize = parseInt(pixelSlider.value);
+        const w = canvas.width;
+        const h = canvas.height;
+
+        if (pixelSize <= 1) {
+            // 如果像素大小為 1，直接畫原圖
+            ctx.drawImage(video, 0, 0, w, h);
+            return;
+        }
+
+        // 計算縮小後的暫存尺寸
+        const scaledW = Math.max(1, Math.floor(w / pixelSize));
+        const scaledH = Math.max(1, Math.floor(h / pixelSize));
+
+        // 關閉影像平滑（關鍵：防止模糊，產生硬邊像素格）
+        ctx.imageSmoothingEnabled = false;
+        ctx.mozImageSmoothingEnabled = false;
+        ctx.webkitImageSmoothingEnabled = false;
+        ctx.msImageSmoothingEnabled = false;
+
+        // 步驟 A: 將大影片縮小畫到 Canvas 上
+        ctx.drawImage(video, 0, 0, scaledW, scaledH);
+        
+        // 步驟 B: 把剛才縮小的畫面，重新放大拉伸填滿整個畫布
+        ctx.drawImage(canvas, 0, 0, scaledW, scaledH, 0, 0, w, h);
+    }
+
+    // 3. 滑桿控制
+    pixelSlider.addEventListener('input', (e) => {
+        pixelLabel.textContent = `2. 像素大小 (Pixel Size): ${e.target.value}px`;
+        if (video.paused) {
+            drawPixelated(); // 暫停時調整滑桿也能即時看到效果
+        }
+    });
+
+    // 4. 播放控制
+    playBtn.addEventListener('click', () => {
+        if (video.paused) {
+            video.play();
+            pixelateFrame();
+        } else {
+            video.pause();
+            cancelAnimationFrame(animationFrameId);
+        }
+    });
+
+    // 5. 錄製與導出邏輯 (MediaRecorder)
+    recordBtn.addEventListener('click', () => {
+        if (!isRecording) {
+            startRecording();
+        } else {
+            stopRecording();
+        }
+    });
+
+    function startRecording() {
+        recordedChunks = [];
+        // 從 Canvas 擷取畫面串流 (預設跟隨瀏覽器渲染格率，或指定 30fps)
+        const stream = canvas.captureStream(30); 
+        
+        // 偵測瀏覽器支援的編碼格式 (優先使用 webm，因為支援度在 Canvas 錄製中最高)
+        let options = { mimeType: 'video/webm;codecs=vp9' };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options = { mimeType: 'video/webm;codecs=vp8' };
+        }
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options = { mimeType: 'video/webm' };
+        }
+
+        try {
+            mediaRecorder = new MediaRecorder(stream, options);
+        } catch (e) {
+            console.error("不支援此錄製格式，嘗試預設格式", e);
+            mediaRecorder = new MediaRecorder(stream);
+        }
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) {
+                recordedChunks.push(e.data);
+            }
         };
-    </script>
+
+        mediaRecorder.onstop = () => {
+            // 錄製停止，包裝成檔案並自動下載
+            const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            // 根據錄製格式決定副檔名 (.webm 或擴充成 .mp4)
+            const ext = mediaRecorder.mimeType.includes('mp4') ? 'mp4' : 'webm';
+            a.download = `pixelated_video.${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            statusText.textContent = "導出成功！檔案已下載。";
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+        recordBtn.textContent = "停止錄製";
+        recordBtn.classList.add('recording');
+        statusText.textContent = "正在錄製畫布畫面...（請保持影片播放中）";
+    }
+
+    function stopRecording() {
+        mediaRecorder.stop();
+        isRecording = false;
+        recordBtn.textContent = "開始錄製";
+        recordBtn.classList.remove('recording');
+        statusText.textContent = "正在生成影片檔案...";
+    }
+</script>
+
 </body>
 </html>
