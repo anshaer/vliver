@@ -1,153 +1,121 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>專業多軌混音工作站</title>
+    <title>Web DAW Pro Max - Ultimate Edition</title>
     <style>
         :root {
-            --mint-light: #e0f2e9;
-            --mint-main: #a3e4d7;
-            --mint-dark: #8ed6c8;
-            --choco-main: #4e342e;
-            --choco-light: #6d4c41;
-            --choco-dark: #3e2723;
-            /* 1秒 = 200px, 所以 0.1秒 = 20px */
-            --pps: 200px; 
-            --grid-minor: 20px;
+            --bg-main: #121212; --bg-panel: #1e1e1e; --bg-toolbar: #2d2d30;
+            --border-color: #3e3e42; --text-main: #e0e0e0; --text-muted: #9e9e9e;
+            --track-bg: #252526; --clip-bg: rgba(0, 191, 165, 0.15); --clip-border: #00bfa5;
+            --wave-color: #00bfa5; --wave-progress: #64ffda;
+            --accent-play: #00e676; --accent-pause: #ffea00; --accent-start: #2196f3; --accent-end: #ff5722;
+            --btn-mute: #f44336; --btn-solo: #ffb300; --pan-color: #ff9800;
         }
 
-        html, body {
-            margin: 0; padding: 0;
-            width: 100vw; height: 100vh;
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            background-color: #eceff1;
-            display: flex; flex-direction: column;
-            overflow: hidden; /* 鎖死外層，內部滾動 */
-        }
+        ::-webkit-scrollbar { width: 12px; height: 12px; }
+        ::-webkit-scrollbar-track { background: var(--bg-main); }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 6px; border: 3px solid var(--bg-main); }
+        ::-webkit-scrollbar-thumb:hover { background: #777; }
 
-        /* 頂部工具列 */
-        .toolbar {
-            background-color: var(--choco-main);
-            color: var(--mint-light);
-            padding: 12px 20px;
-            display: flex; align-items: center; justify-content: space-between;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            z-index: 50;
-        }
+        html, body { margin: 0; padding: 0; width: 100vw; height: 100vh; font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg-main); color: var(--text-main); display: flex; flex-direction: column; overflow: hidden; }
 
-        .toolbar-group { display: flex; align-items: center; gap: 15px; }
-        h1 { margin: 0; font-size: 18px; color: var(--mint-main); }
+        /* Toolbar & Buttons */
+        .toolbar { background-color: var(--bg-toolbar); padding: 8px 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); z-index: 50; flex-wrap: wrap; gap: 10px; }
+        .toolbar-group { display: flex; align-items: center; gap: 8px; }
+        h1 { margin: 0; font-size: 15px; color: var(--text-main); font-weight: 800; letter-spacing: 1px; }
         input[type="file"] { display: none; }
 
-        .btn {
-            background-color: var(--mint-main); color: var(--choco-dark);
-            border: none; padding: 8px 16px; border-radius: 6px;
-            cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s;
-        }
-        .btn:hover { background-color: var(--mint-dark); }
-        .btn:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+        .btn { background-color: #3e3e42; color: #fff; border: 1px solid #555; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.2s; }
+        .btn:hover { background-color: #555; }
+        .btn-primary { background-color: var(--clip-border); color: #000; border: none; }
+        .btn-primary:hover { background-color: var(--wave-progress); }
+        .btn-play { background-color: var(--accent-play); color: #000; border: none; }
+        .btn-play:hover { background-color: #69f0ae; }
+        .btn-pause { background-color: var(--accent-pause); color: #000; border: none; }
+        .btn-pause:hover { background-color: #ffff8d; }
+        
+        .control-group { display: flex; align-items: center; background: #1e1e1e; border-radius: 4px; border: 1px solid #444; padding: 2px 6px; font-size: 12px; }
+        .control-group select { background: transparent; color: #fff; border: none; outline: none; margin-left: 5px; cursor: pointer; }
+        .control-group input[type=checkbox] { accent-color: var(--clip-border); cursor: pointer; }
 
-        /* 工作區佈局 (左側標題區 + 右側時間軸區) */
-        .workspace {
-            flex: 1;
-            display: flex;
-            overflow: hidden; /* 防止超出 */
-            position: relative;
-        }
+        /* Workspace */
+        .workspace { flex: 1; display: flex; overflow: hidden; position: relative; }
 
-        /* 左側軌道控制面板 */
-        .sidebar {
-            width: 200px;
-            background-color: var(--mint-light);
-            border-right: 2px solid var(--choco-main);
-            overflow-y: hidden; /* 跟隨右側同步滾動 */
-            display: flex; flex-direction: column;
-            z-index: 10;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        /* Sidebar Tracks */
+        .sidebar { width: 260px; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; z-index: 20; flex-shrink: 0; overflow-y: hidden; }
+        .sidebar-header, .ruler { height: 30px; min-height: 30px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-toolbar); flex-shrink: 0; }
+        
+        .sidebar-track, .timeline-track-row { 
+            height: 170px; min-height: 170px; box-sizing: border-box; 
+            border-bottom: 1px solid var(--border-color); flex-shrink: 0; 
         }
+        .timeline-track-row { position: relative; }
+        .sidebar-track { padding: 8px 12px; display: flex; flex-direction: column; justify-content: space-between; background-color: var(--track-bg); position: relative; }
+        
+        .track-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .track-name { font-size: 13px; font-weight: bold; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 200px; }
+        .btn-delete { background: transparent; color: #ff5252; border: none; font-size: 14px; cursor: pointer; padding: 0 4px; transition: 0.2s; }
+        .btn-delete:hover { background: #ff5252; color: #fff; border-radius: 3px; }
 
-        .sidebar-track {
-            height: 140px; /* 固定軌道高度 */
-            border-bottom: 2px solid var(--choco-main);
-            padding: 10px;
-            box-sizing: border-box;
-            display: flex; flex-direction: column; justify-content: center; gap: 8px;
+        /* Mute/Solo Buttons */
+        .ms-group { display: flex; gap: 8px; margin-top: 4px; margin-bottom: 4px; }
+        .btn-mute, .btn-solo { 
+            flex: 1; height: 26px; border-radius: 4px; border: 1px solid #555; 
+            background: #2d2d30; color: #aaa; font-weight: bold; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; font-size: 12px; 
+            transition: 0.2s; letter-spacing: 1px;
         }
+        .btn-mute:hover { border-color: var(--btn-mute); color: var(--btn-mute); }
+        .btn-solo:hover { border-color: var(--btn-solo); color: var(--btn-solo); }
+        .btn-mute.active { background-color: var(--btn-mute); color: #fff; border-color: var(--btn-mute); }
+        .btn-solo.active { background-color: var(--btn-solo); color: #000; border-color: var(--btn-solo); }
 
-        .track-name { font-size: 12px; font-weight: bold; color: var(--choco-dark); word-break: break-all; }
-        .btn-danger { background-color: #e57373; color: white; border: none; padding: 5px; border-radius: 4px; cursor: pointer; font-size: 12px;}
-        .btn-danger:hover { background-color: #ef5350; }
+        /* Track Sliders (Gain & Pan) */
+        .slider-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        .slider-row input[type=range] { width: 100px; accent-color: var(--clip-border); }
+        .slider-row input.pan-slider { accent-color: var(--pan-color); }
+        .val-display { font-family: monospace; width: 45px; text-align: right; color: var(--text-main); }
 
-        /* 右側時間軸滾動視窗 */
-        .timeline-viewport {
-            flex: 1;
-            overflow-x: auto; /* 允許橫向滾動 */
-            overflow-y: auto; /* 允許垂直滾動 */
-            position: relative;
-            background-color: #fff;
-        }
+        /* Automation Mode Switch */
+        .auto-mode-switch { display: flex; background: #111; border-radius: 4px; overflow: hidden; margin-top: 6px; border: 1px solid #444; }
+        .auto-btn { flex: 1; padding: 4px 0; text-align: center; font-size: 11px; cursor: pointer; background: transparent; color: #888; border: none; font-weight: bold; transition: 0.2s; }
+        .auto-btn.active-vol { background: #555; color: #fff; }
+        .auto-btn.active-pan { background: var(--pan-color); color: #000; }
 
-        /* 實際的時間軸容器 (寬度會動態變大) */
-        .timeline-container {
-            position: relative;
-            min-height: 100%;
-            /* 預設寬度，稍後會由 JS 根據音檔長度撐開 */
-            width: 1000px; 
-        }
+        /* Timeline & Markers */
+        .timeline-viewport { flex: 1; overflow-x: auto; overflow-y: auto; position: relative; background-color: var(--bg-main); outline: none; }
+        .timeline-container { position: relative; min-height: 100%; display: flex; flex-direction: column; }
+        .ruler { position: sticky; top: 0; z-index: 15; cursor: pointer; color: var(--text-muted); }
+        .ruler-tick { position: absolute; top: 0; height: 100%; border-left: 1px solid #444; padding-left: 4px; font-size: 11px; display: flex; align-items: flex-end; padding-bottom: 2px; pointer-events: none; }
 
-        /* 背景網格 (大格1秒，小格0.1秒) */
-        .timeline-grid {
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background-image: 
-                linear-gradient(to right, rgba(78,52,46,0.3) 1px, transparent 1px),
-                linear-gradient(to right, rgba(78,52,46,0.08) 1px, transparent 1px);
-            background-size: var(--pps) 100%, var(--grid-minor) 100%;
-            pointer-events: none; /* 不干擾點擊 */
-            z-index: 0;
-        }
+        .time-marker { position: absolute; top: 0; bottom: 0; width: 2px; z-index: 25; pointer-events: none; }
+        .time-marker-handle { position: absolute; top: 0; left: -30px; width: 60px; height: 30px; cursor: grab; display: flex; justify-content: center; pointer-events: auto; }
+        .time-marker-handle:active { cursor: grabbing; }
+        .playhead { background-color: var(--accent-play); z-index: 26; }
+        .playhead-handle::before { content: '▶'; font-size: 10px; background: var(--accent-play); color: #000; padding: 2px 6px; border-radius: 3px; font-weight: bold; pointer-events: none; }
+        
+        .timeline-grid { position: absolute; top: 30px; left: 0; right: 0; bottom: 0; background-image: linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px); pointer-events: none; z-index: 0; }
 
-        /* 右側波形軌道列 */
-        .timeline-track-row {
-            height: 140px;
-            border-bottom: 2px solid var(--choco-light);
-            position: relative;
-            box-sizing: border-box;
-        }
+        /* Audio Clip */
+        .audio-clip { position: absolute; top: 15px; height: 140px; background-color: var(--clip-bg); border: 1px solid var(--clip-border); border-radius: 4px; display: flex; flex-direction: column; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: opacity 0.2s; }
+        .audio-clip.is-muted { opacity: 0.3; filter: grayscale(1); }
+        .clip-handle { height: 18px; background-color: #004d40; color: #b2dfdb; font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: grab; user-select: none; border-bottom: 1px solid var(--clip-border); z-index: 10; }
+        .clip-waveform { flex: 1; width: 100%; position: relative; overflow: hidden; }
+        .clip-stretch-handle { position: absolute; top: 18px; bottom: 0; width: 12px; background-color: rgba(0, 191, 165, 0.2); cursor: ew-resize; z-index: 12; display: flex; align-items: center; justify-content: center; }
+        .clip-stretch-left { left: 0; border-right: 1px solid rgba(0, 191, 165, 0.4); }
+        .clip-stretch-right { right: 0; border-left: 1px solid rgba(0, 191, 165, 0.4); }
 
-        /* 音訊片段 (Clip) - 核心定位對象 */
-        .audio-clip {
-            position: absolute; /* 絕對定位，不被擠壓 */
-            top: 10px;
-            height: 120px;
-            background-color: rgba(163, 228, 215, 0.2);
-            border: 1px solid var(--mint-main);
-            border-radius: 4px;
-            display: flex; flex-direction: column;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            /* width 和 left 會由 JS 控制 */
-        }
-
-        /* Clip 上方的拖拉把手 */
-        .clip-handle {
-            height: 20px;
-            background-color: var(--choco-light);
-            color: var(--mint-light);
-            font-size: 12px;
-            display: flex; align-items: center; justify-content: center;
-            cursor: grab;
-            user-select: none;
-            border-radius: 3px 3px 0 0;
-        }
-        .clip-handle:active { cursor: grabbing; background-color: var(--choco-dark); }
-
-        /* 裝載 WaveSurfer 的容器 */
-        .clip-waveform {
-            flex: 1;
-            width: 100%;
-            position: relative;
-        }
+        /* Custom Pan Automation Layer */
+        .pan-automation-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 6; pointer-events: auto; display: none; }
+        .pan-automation-layer.active { display: block; }
+        .pan-line { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .pan-point { position: absolute; width: 12px; height: 12px; background: var(--pan-color); border: 2px solid #fff; border-radius: 50%; transform: translate(-50%, -50%); cursor: pointer; box-shadow: 0 0 5px rgba(0,0,0,0.8); }
+        .pan-label { position: absolute; background: rgba(0,0,0,0.8); color: var(--pan-color); font-size: 10px; padding: 2px 4px; border-radius: 3px; border: 1px solid var(--pan-color); transform: translate(-50%, -25px); pointer-events: none; font-weight: bold; }
+        
+        .envelope-labels-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+        .env-label { position: absolute; background: rgba(0,0,0,0.8); color: #fff; font-size: 10px; padding: 2px 4px; border-radius: 3px; font-weight: bold; pointer-events: none; border: 1px solid #444; }
 
     </style>
 </head>
@@ -155,24 +123,54 @@
 
 <div class="toolbar">
     <div class="toolbar-group">
-        <h1>多軌混音工作站</h1>
-        <label class="btn" style="background-color: var(--mint-light);">
-            <input type="file" id="audio-upload" accept="audio/*" multiple>
-            📁 新增音軌
-        </label>
+        <h1>DAW PRO MAX</h1>
+        <label class="btn btn-primary"><input type="file" id="audio-upload" accept="audio/*" multiple>📁 新增音軌</label>
+        <button class="btn" id="btn-undo" disabled>↶ 復原</button>
+        <button class="btn" id="btn-redo" disabled>↷ 重做</button>
     </div>
 
     <div class="toolbar-group">
-        <button id="export-btn" class="btn">💾 照時間軸混音並輸出 WAV</button>
+        <button id="play-btn" class="btn btn-play">▶ 播放</button>
+        <button id="pause-btn" class="btn btn-pause">⏸ 暫停</button>
+        <button id="stop-btn" class="btn">⏹ 停止</button>
+        
+        <div class="control-group" title="滾輪可縮放">
+            🔍 縮放: <span id="zoom-val">100%</span>
+        </div>
+        
+        <div class="control-group">
+            <input type="checkbox" id="snap-toggle"> <label for="snap-toggle" style="cursor:pointer;">磁吸對齊</label>
+            <select id="snap-grid">
+                <option value="1">1s</option>
+                <option value="0.5" selected>0.5s</option>
+                <option value="0.1">0.1s</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="toolbar-group">
+        <div class="control-group" title="套用 Master Compressor 限幅壓縮">
+            <input type="checkbox" id="master-fx"> <label for="master-fx" style="cursor:pointer; color:#ffb300; font-weight:bold;">母帶處理(Mastering)</label>
+        </div>
+        <button id="export-btn" class="btn btn-primary">💾 範圍輸出 WAV</button>
     </div>
 </div>
 
 <div class="workspace">
-    <div class="sidebar" id="sidebar"></div>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header"></div>
+        <div id="sidebar-tracks"></div>
+    </div>
     
-    <div class="timeline-viewport" id="viewport">
+    <div class="timeline-viewport" id="viewport" tabindex="0">
         <div class="timeline-container" id="timeline">
-            <div class="timeline-grid"></div>
+            <div class="ruler" id="ruler"></div>
+            <div class="timeline-grid" id="grid-bg"></div>
+            
+            <div class="time-marker playhead" id="playhead" style="left: 0px;"><div class="time-marker-handle playhead-handle" id="playhead-handle"></div></div>
+            <div class="time-marker export-start" id="exp-start-line" style="left: 0px;"><div class="time-marker-handle" id="exp-start-handle" style="background:rgba(33,150,243,0.3);"></div></div>
+            <div class="time-marker export-end" id="exp-end-line" style="left: 1000px;"><div class="time-marker-handle" id="exp-end-handle" style="background:rgba(255,87,34,0.3);"></div></div>
+
             <div id="tracks-content"></div>
         </div>
     </div>
@@ -182,274 +180,536 @@
     import WaveSurfer from 'https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.esm.js';
     import EnvelopePlugin from 'https://unpkg.com/wavesurfer.js@7/dist/plugins/envelope.esm.js';
 
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const sidebar = document.getElementById('sidebar');
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const coreAudioCtx = new AudioContextClass(); 
+    
+    const sidebarTracks = document.getElementById('sidebar-tracks');
     const tracksContent = document.getElementById('tracks-content');
     const timeline = document.getElementById('timeline');
     const viewport = document.getElementById('viewport');
+    const ruler = document.getElementById('ruler');
+    const gridBg = document.getElementById('grid-bg');
     
-    // 全域設定：1秒鐘 = 200px
-    const PIXELS_PER_SECOND = 200; 
+    const playhead = document.getElementById('playhead');
+    const expStartLine = document.getElementById('exp-start-line');
+    const expEndLine = document.getElementById('exp-end-line');
+    
+    let basePPS = 200; 
+    let zoomLevel = 1.0;
+    let getPPS = () => basePPS * zoomLevel;
+    
     let tracks = []; 
+    let globalTime = 0, exportStartTime = 0, exportEndTime = 10;
+    
+    let isPlaying = false;
+    let playAnimationId;
+    let startRealTime = 0, startGlobalTime = 0;
+    let liveAudioNodes = []; 
 
-    // 同步左右兩側的垂直滾動
-    viewport.addEventListener('scroll', () => {
-        sidebar.scrollTop = viewport.scrollTop;
-    });
+    viewport.addEventListener('scroll', () => { document.getElementById('sidebar').scrollTop = viewport.scrollTop; });
 
-    // 動態更新時間軸總寬度 (最長音軌 + 2秒)
-    function updateTimelineWidth() {
-        if (tracks.length === 0) {
-            timeline.style.width = '100%';
-            return;
+    viewport.addEventListener('wheel', (e) => {
+        if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            const zoomDir = e.deltaY > 0 ? 0.9 : 1.1;
+            zoomLevel = Math.max(0.1, Math.min(zoomLevel * zoomDir, 5.0));
+            document.getElementById('zoom-val').textContent = `${Math.round(zoomLevel * 100)}%`;
+            updateAllVisuals();
         }
-        // 找出 (起點 offset + 音檔本身長度) 的最大值
-        const maxTime = tracks.reduce((max, t) => Math.max(max, t.offset + t.duration), 0);
-        const totalSeconds = maxTime + 2; // 多留 2 秒空白
-        
-        // 算出對應的像素寬度
-        const calculatedWidth = totalSeconds * PIXELS_PER_SECOND;
-        
-        // 確保至少填滿畫面，避免縮圖破圖
-        const minWidth = viewport.clientWidth;
-        timeline.style.width = `${Math.max(calculatedWidth, minWidth)}px`;
+    }, { passive: false });
+
+    const snapToggle = document.getElementById('snap-toggle');
+    const snapGrid = document.getElementById('snap-grid');
+    function applySnap(timeSec) {
+        if (!snapToggle.checked) return timeSec;
+        const gridSec = parseFloat(snapGrid.value);
+        return Math.round(timeSec / gridSec) * gridSec;
     }
 
-    // 處理上傳檔案
-    document.getElementById('audio-upload').addEventListener('change', async (e) => {
-        const files = Array.from(e.target.files);
-        if (!files.length) return;
+    let history = [];
+    let historyIndex = -1;
 
-        for (const file of files) {
-            await addTrack(file);
+    function saveState() {
+        const snapshot = tracks.map(t => ({
+            id: t.id, offset: t.offset, duration: t.originalDuration,
+            effectiveDuration: t.effectiveDuration, playbackRate: t.playbackRate,
+            gainDB: t.gainDB, pan: t.pan, mute: t.mute, solo: t.solo,
+            volPoints: JSON.parse(JSON.stringify(t.envelopePoints)),
+            panPoints: JSON.parse(JSON.stringify(t.panPoints))
+        }));
+        
+        if (historyIndex < history.length - 1) {
+            history = history.splice(0, historyIndex + 1);
         }
+        history.push(snapshot);
+        historyIndex++;
+        updateUndoRedoUI();
+    }
+
+    function updateUndoRedoUI() {
+        document.getElementById('btn-undo').disabled = historyIndex <= 0;
+        document.getElementById('btn-redo').disabled = historyIndex >= history.length - 1;
+    }
+
+    document.getElementById('btn-undo').addEventListener('click', () => {
+        if (historyIndex > 0) { historyIndex--; restoreState(history[historyIndex]); }
+    });
+    document.getElementById('btn-redo').addEventListener('click', () => {
+        if (historyIndex < history.length - 1) { historyIndex++; restoreState(history[historyIndex]); }
+    });
+
+    function restoreState(snapshot) {
+        snapshot.forEach(snap => {
+            let t = tracks.find(tr => tr.id === snap.id);
+            if (t) {
+                t.offset = snap.offset; t.effectiveDuration = snap.effectiveDuration; t.playbackRate = snap.playbackRate;
+                t.gainDB = snap.gainDB; t.pan = snap.pan; t.mute = snap.mute; t.solo = snap.solo;
+                t.envelopePoints = snap.volPoints; t.panPoints = snap.panPoints;
+                
+                t.sidebarRow.querySelector('.gain-slider').value = t.gainDB;
+                t.sidebarRow.querySelector('.gain-value').textContent = `${t.gainDB.toFixed(1)} dB`;
+                t.sidebarRow.querySelector('.pan-slider').value = t.pan;
+                t.sidebarRow.querySelector('.pan-value').textContent = t.pan === 0 ? 'C' : (t.pan < 0 ? `L${Math.abs(Math.round(t.pan*100))}` : `R${Math.round(t.pan*100)}`);
+                t.sidebarRow.querySelector('.btn-mute').classList.toggle('active', t.mute);
+                t.sidebarRow.querySelector('.btn-solo').classList.toggle('active', t.solo);
+                t.clipElement.classList.toggle('is-muted', t.mute);
+                
+                drawPanAutomation(t);
+            }
+        });
+        updateAllVisuals();
+    }
+
+    function updateAllVisuals() {
+        const pps = getPPS();
+        const maxTrackTime = tracks.reduce((max, t) => Math.max(max, t.offset + t.effectiveDuration), 0);
+        const totalSeconds = Math.max(20, Math.ceil(Math.max(exportEndTime, maxTrackTime) + 5)); 
+        const widthPx = totalSeconds * pps;
+        
+        timeline.style.width = `${widthPx}px`;
+        gridBg.style.backgroundSize = `${pps}px 100%, ${pps/10}px 100%`;
+
+        ruler.innerHTML = '';
+        for(let i = 0; i <= totalSeconds; i++) {
+            let tick = document.createElement('div'); tick.className = 'ruler-tick';
+            tick.style.left = `${i * pps}px`; tick.textContent = `${i}s`;
+            ruler.appendChild(tick);
+        }
+
+        playhead.style.left = `${globalTime * pps}px`;
+        expStartLine.style.left = `${exportStartTime * pps}px`;
+        expEndLine.style.left = `${exportEndTime * pps}px`;
+
+        tracks.forEach(t => {
+            t.clipElement.style.left = `${t.offset * pps}px`;
+            t.clipElement.style.width = `${t.effectiveDuration * pps}px`;
+            t.sidebarRow.querySelector('.track-duration-text').textContent = `${t.effectiveDuration.toFixed(2)}s (x${t.playbackRate.toFixed(2)})`;
+            t.wavesurfer.setOptions({ width: t.effectiveDuration * pps });
+            drawPanAutomation(t); 
+        });
+    }
+
+    function setupMarkerDrag(handle, onDrag, onDrop) {
+        let isDragging = false;
+        handle.addEventListener('mousedown', (e) => { isDragging = true; e.stopPropagation(); });
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const rect = timeline.getBoundingClientRect();
+            let rawTime = Math.max(0, (e.clientX - rect.left) / getPPS());
+            onDrag(applySnap(rawTime));
+            updateAllVisuals();
+        });
+        window.addEventListener('mouseup', () => { if (isDragging) { isDragging = false; if(onDrop) onDrop(); } });
+    }
+
+    setupMarkerDrag(document.getElementById('playhead-handle'), t => globalTime = t, () => { if(isPlaying){ stopAudioNodes(); startPlayback(); } });
+    setupMarkerDrag(document.getElementById('exp-start-handle'), t => exportStartTime = Math.min(t, exportEndTime - 0.1));
+    setupMarkerDrag(document.getElementById('exp-end-handle'), t => exportEndTime = Math.max(t, exportStartTime + 0.1));
+
+    ruler.addEventListener('click', (e) => {
+        const rect = timeline.getBoundingClientRect();
+        globalTime = applySnap(Math.max(0, (e.clientX - rect.left) / getPPS()));
+        updateAllVisuals();
+        if (isPlaying) { stopAudioNodes(); startPlayback(); }
+    });
+
+    document.getElementById('audio-upload').addEventListener('change', async (e) => {
+        for (const file of Array.from(e.target.files)) await addTrack(file);
         e.target.value = ''; 
+        if(history.length === 0) saveState(); 
     });
 
     async function addTrack(file) {
-        const trackId = 'track_' + Date.now() + Math.floor(Math.random() * 1000);
-        
+        const trackId = 'track_' + Date.now() + Math.random().toString(36).substr(2, 9);
         const arrayBuffer = await file.arrayBuffer();
-        const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        const duration = decodedBuffer.duration;
-        
-        // 新音軌預設放在 0 秒處
-        const initialOffset = 0; 
-        // 實體長度計算 (絕對不會被擠壓)
-        const clipWidthPx = duration * PIXELS_PER_SECOND;
+        const buffer = await coreAudioCtx.decodeAudioData(arrayBuffer);
+        const origDur = buffer.duration;
 
-        /* --- 左側控制面板 --- */
-        const sidebarRow = document.createElement('div');
-        sidebarRow.className = 'sidebar-track';
-        sidebarRow.innerHTML = `
-            <div class="track-name" title="${file.name}">${file.name}</div>
-            <div style="font-size: 11px; color: #666;">長度: ${duration.toFixed(2)}s</div>
-            <button class="btn-danger" onclick="removeTrack('${trackId}')">🗑️ 刪除</button>
+        const sbRow = document.createElement('div'); sbRow.className = 'sidebar-track';
+        sbRow.innerHTML = `
+            <div class="track-header">
+                <div class="track-name" title="${file.name}">${file.name}</div>
+                <button class="btn-delete" title="刪除軌道">✖</button>
+            </div>
+            <div class="track-duration-text" style="font-size: 10px; color: var(--text-muted);">${origDur.toFixed(2)}s (x1.0)</div>
+            
+            <div class="ms-group">
+                <button class="btn-mute" title="靜音 Mute">M 靜音</button>
+                <button class="btn-solo" title="獨奏 Solo">S 獨奏</button>
+            </div>
+            
+            <div class="slider-row">
+                Vol <input type="range" class="gain-slider" min="-24" max="12" step="0.1" value="0">
+                <span class="val-display gain-value">0.0</span>
+            </div>
+            <div class="slider-row">
+                Pan <input type="range" class="pan-slider" min="-1" max="1" step="0.01" value="0">
+                <span class="val-display pan-value">C</span>
+            </div>
+            
+            <div class="auto-mode-switch">
+                <button class="auto-btn active-vol">音量曲線</button>
+                <button class="auto-btn">聲像曲線</button>
+            </div>
         `;
-        sidebar.appendChild(sidebarRow);
+        sidebarTracks.appendChild(sbRow);
 
-        /* --- 右側時間軸軌道 --- */
-        const trackRow = document.createElement('div');
-        trackRow.className = 'timeline-track-row';
-
-        // 獨立音訊片段 (Clip)
-        const clip = document.createElement('div');
-        clip.className = 'audio-clip';
-        clip.style.width = `${clipWidthPx}px`;
-        clip.style.left = `${initialOffset * PIXELS_PER_SECOND}px`;
-
-        // 拖拉把手 (Studio One 風格)
-        const dragHandle = document.createElement('div');
-        dragHandle.className = 'clip-handle';
-        dragHandle.textContent = '⋮⋮ 左右拖拉移動位置 ⋮⋮';
+        const tRow = document.createElement('div'); tRow.className = 'timeline-track-row';
+        const clip = document.createElement('div'); clip.className = 'audio-clip';
+        const dragHandle = document.createElement('div'); dragHandle.className = 'clip-handle'; dragHandle.textContent = '⋮⋮ 拖拉移動 ⋮⋮';
+        const stLeft = document.createElement('div'); stLeft.className = 'clip-stretch-handle clip-stretch-left';
+        const stRight = document.createElement('div'); stRight.className = 'clip-stretch-handle clip-stretch-right';
+        const wsCont = document.createElement('div'); wsCont.className = 'clip-waveform';
         
-        // 波形容器
-        const wsContainer = document.createElement('div');
-        wsContainer.className = 'clip-waveform';
+        const volLabels = document.createElement('div'); volLabels.className = 'envelope-labels-layer';
+        const panLayer = document.createElement('div'); panLayer.className = 'pan-automation-layer';
+        
+        wsCont.appendChild(volLabels); wsCont.appendChild(panLayer);
+        clip.append(dragHandle, wsCont, stLeft, stRight);
+        tRow.appendChild(clip); tracksContent.appendChild(tRow);
 
-        clip.appendChild(dragHandle);
-        clip.appendChild(wsContainer);
-        trackRow.appendChild(clip);
-        tracksContent.appendChild(trackRow);
+        const ws = WaveSurfer.create({ container: wsCont, waveColor: '#00bfa5', cursorColor: 'transparent', height: 'auto', normalize: true, interact: false });
+        ws.setVolume(0); 
 
-        // 初始化 WaveSurfer
-        const ws = WaveSurfer.create({
-            container: wsContainer,
-            waveColor: '#a3e4d7',
-            progressColor: '#4e342e',
-            cursorColor: '#d32f2f',
-            height: 'auto', // 填滿 wsContainer
-            normalize: true,
-            interact: false // 關閉點擊跳轉，避免與拖拉衝突
-        });
+        const envelope = ws.registerPlugin(EnvelopePlugin.create({ volume: 0.846, lineColor: 'rgba(255,255,255,0.8)', lineWidth: 3, dragPointSize: 20, dragLine: true, dragPoint: true }));
 
-        const envelope = ws.registerPlugin(EnvelopePlugin.create({
-            volume: 1,
-            lineColor: 'rgba(78, 52, 46, 0.8)',
-            lineWidth: 3, dragPointSize: 12, dragLine: true, dragPoint: true,
-        }));
-
-        const trackData = {
-            id: trackId,
-            sidebarRow: sidebarRow,
-            trackRow: trackRow,
-            clipElement: clip,
-            wavesurfer: ws,
-            buffer: decodedBuffer,
-            duration: duration,
-            offset: initialOffset,
-            envelopePoints: []
+        const tData = {
+            id: trackId, sidebarRow: sbRow, trackRow: tRow, clipElement: clip, wavesurfer: ws, buffer: buffer,
+            originalDuration: origDur, effectiveDuration: origDur, playbackRate: 1.0, offset: 0,
+            gainDB: 0, pan: 0, mute: false, solo: false, envelopePoints: [], panPoints: [], panLayer: panLayer, wsCont: wsCont
         };
 
-        envelope.on('points-change', (points) => trackData.envelopePoints = points);
+        const gSlider = sbRow.querySelector('.gain-slider'); const gVal = sbRow.querySelector('.gain-value');
+        gSlider.addEventListener('input', e => { tData.gainDB = parseFloat(e.target.value); gVal.textContent = tData.gainDB.toFixed(1); });
+        gSlider.addEventListener('change', saveState);
 
-        // 載入波形
+        const pSlider = sbRow.querySelector('.pan-slider'); const pVal = sbRow.querySelector('.pan-value');
+        pSlider.addEventListener('input', e => { 
+            tData.pan = parseFloat(e.target.value); 
+            pVal.textContent = tData.pan === 0 ? 'C' : (tData.pan < 0 ? `L${Math.abs(Math.round(tData.pan*100))}` : `R${Math.round(tData.pan*100)}`); 
+        });
+        pSlider.addEventListener('change', saveState);
+
+        const btnMute = sbRow.querySelector('.btn-mute');
+        btnMute.addEventListener('click', () => { 
+            tData.mute = !tData.mute; btnMute.classList.toggle('active', tData.mute); 
+            clip.classList.toggle('is-muted', tData.mute); saveState(); 
+        });
+        const btnSolo = sbRow.querySelector('.btn-solo');
+        btnSolo.addEventListener('click', () => { 
+            tData.solo = !tData.solo; btnSolo.classList.toggle('active', tData.solo); 
+            saveState(); 
+        });
+
+        sbRow.querySelector('.btn-delete').addEventListener('click', () => {
+            ws.destroy(); sbRow.remove(); tRow.remove();
+            tracks = tracks.filter(t => t.id !== trackId);
+            updateAllVisuals(); saveState();
+        });
+
+        envelope.on('points-change', (points) => {
+            tData.envelopePoints = points; volLabels.innerHTML = '';
+            points.forEach(p => {
+                const lbl = document.createElement('div'); lbl.className = 'env-label';
+                lbl.style.left = `${(p.time / tData.originalDuration) * 100}%`;
+                lbl.style.top = `${(1 - p.volume) * 100}%`;
+                lbl.style.transform = p.volume > 0.85 ? 'translate(-50%, 14px)' : 'translate(-50%, -140%)';
+                lbl.innerText = `${Math.round(((p.volume * 1.3) - 0.1) * 100)}%`;
+                volLabels.appendChild(lbl);
+            });
+        });
+
+        const btnVol = sbRow.querySelector('.auto-btn:nth-child(1)');
+        const btnPan = sbRow.querySelector('.auto-btn:nth-child(2)');
+        btnVol.addEventListener('click', () => {
+            btnVol.classList.add('active-vol'); btnPan.classList.remove('active-pan');
+            panLayer.classList.remove('active'); wsCont.style.pointerEvents = 'auto';
+        });
+        btnPan.addEventListener('click', () => {
+            btnPan.classList.add('active-pan'); btnVol.classList.remove('active-vol');
+            panLayer.classList.add('active'); wsCont.style.pointerEvents = 'none'; 
+        });
+
+        // 核心修復：加入 viewBox 讓 SVG 座標正確轉換為百分比比例
+        panLayer.innerHTML = `<svg class="pan-line" preserveAspectRatio="none" viewBox="0 0 100 100" width="100%" height="100%"><polyline fill="none" stroke="var(--pan-color)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`;
+        panLayer.addEventListener('dblclick', (e) => {
+            const rect = panLayer.getBoundingClientRect();
+            const time = (e.clientX - rect.left) / rect.width * tData.originalDuration; 
+            const rawVol = 1 - (e.clientY - rect.top) / rect.height; 
+            const panVal = (rawVol * 2) - 1; 
+            tData.panPoints.push({ time, value: panVal });
+            drawPanAutomation(tData); saveState();
+        });
+
         ws.load(URL.createObjectURL(file));
-        tracks.push(trackData);
+        tracks.push(tData);
+        updateAllVisuals();
+
+        let isDrag = false, sx = 0, sL = 0, sW = 0, activeAction = null;
+        const startAction = (e, action) => { isDrag = true; activeAction = action; sx = e.clientX; sL = parseFloat(clip.style.left)||0; sW = parseFloat(clip.style.width)||0; e.stopPropagation(); };
         
-        // 更新畫布寬度
-        updateTimelineWidth();
+        dragHandle.addEventListener('mousedown', e => startAction(e, 'move'));
+        stRight.addEventListener('mousedown', e => startAction(e, 'stretch-r'));
+        stLeft.addEventListener('mousedown', e => startAction(e, 'stretch-l'));
 
-        /* --- 拖拉排程邏輯 (Drag & Drop) --- */
-        let isDragging = false;
-        let startX = 0;
-        let startLeft = 0;
+        window.addEventListener('mousemove', e => {
+            if(!isDrag) return;
+            const deltaX = e.clientX - sx;
+            let rawL = sL, rawW = sW;
+            const pps = getPPS();
 
-        dragHandle.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            startX = e.clientX;
-            // 取得目前的 left 像素值
-            startLeft = parseFloat(clip.style.left) || 0;
-            document.body.style.cursor = 'grabbing';
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            const deltaX = e.clientX - startX;
-            let newLeft = startLeft + deltaX;
-            
-            // 限制不能拖到 0 秒之前
-            if (newLeft < 0) newLeft = 0;
-            
-            clip.style.left = `${newLeft}px`;
-            // 更新真實秒數 offset
-            trackData.offset = newLeft / PIXELS_PER_SECOND;
-            
-            // 拖拉時即時更新總畫布寬度
-            updateTimelineWidth();
-        });
-
-        window.addEventListener('mouseup', () => {
-            if (isDragging) {
-                isDragging = false;
-                document.body.style.cursor = 'default';
+            if (activeAction === 'move') {
+                rawL = Math.max(0, sL + deltaX);
+                tData.offset = applySnap(rawL / pps); 
+            } else if (activeAction === 'stretch-r') {
+                rawW = Math.max(50, sW + deltaX);
+                tData.effectiveDuration = applySnap(rawW / pps);
+            } else if (activeAction === 'stretch-l') {
+                let dx = deltaX;
+                if (sW - dx < 50) dx = sW - 50;
+                if (sL + dx < 0) dx = -sL;
+                rawW = sW - dx; rawL = sL + dx;
+                let snappedOffset = applySnap((sL + dx)/pps);
+                tData.offset = snappedOffset;
+                tData.effectiveDuration = (sL + sW)/pps - snappedOffset;
             }
+            
+            tData.playbackRate = tData.originalDuration / tData.effectiveDuration;
+            updateAllVisuals();
         });
+
+        window.addEventListener('mouseup', () => { if(isDrag){ isDrag=false; saveState(); } });
     }
 
-    // 刪除軌道
-    window.removeTrack = function(trackId) {
-        const index = tracks.findIndex(t => t.id === trackId);
-        if (index > -1) {
-            tracks[index].wavesurfer.destroy();
-            tracks[index].sidebarRow.remove();
-            tracks[index].trackRow.remove();
-            tracks.splice(index, 1);
-            updateTimelineWidth();
+    function drawPanAutomation(t) {
+        const svg = t.panLayer.querySelector('polyline');
+        t.panLayer.querySelectorAll('.pan-point, .pan-label').forEach(e => e.remove());
+        
+        t.panPoints.sort((a,b) => a.time - b.time);
+        let pointsStr = "";
+        
+        t.panPoints.forEach((p, idx) => {
+            const xPercent = (p.time / t.originalDuration) * 100;
+            const yPercent = (1 - ((p.value + 1) / 2)) * 100; 
+            pointsStr += `${xPercent},${yPercent} `;
+
+            const dot = document.createElement('div'); dot.className = 'pan-point';
+            dot.style.left = `${xPercent}%`; dot.style.top = `${yPercent}%`;
+            
+            const lbl = document.createElement('div'); lbl.className = 'pan-label';
+            lbl.style.left = `${xPercent}%`; lbl.style.top = `${yPercent}%`;
+            lbl.textContent = p.value === 0 ? 'C' : (p.value < 0 ? `L${Math.abs(Math.round(p.value*100))}` : `R${Math.round(p.value*100)}`);
+            
+            let isDraggingPoint = false;
+            dot.addEventListener('mousedown', (e) => { isDraggingPoint = true; e.stopPropagation(); });
+            window.addEventListener('mousemove', (e) => {
+                if(!isDraggingPoint) return;
+                const rect = t.panLayer.getBoundingClientRect();
+                p.time = Math.max(0, Math.min(t.originalDuration, (e.clientX - rect.left) / rect.width * t.originalDuration));
+                p.value = Math.max(-1, Math.min(1, ((1 - (e.clientY - rect.top) / rect.height) * 2) - 1));
+                drawPanAutomation(t);
+            });
+            window.addEventListener('mouseup', () => { if(isDraggingPoint){ isDraggingPoint = false; saveState(); } });
+            
+            dot.addEventListener('contextmenu', (e) => { e.preventDefault(); t.panPoints.splice(idx, 1); drawPanAutomation(t); saveState(); });
+
+            t.panLayer.appendChild(dot); t.panLayer.appendChild(lbl);
+        });
+        
+        if(t.panPoints.length > 0) {
+            let startY = (1 - ((t.panPoints[0].value + 1) / 2)) * 100;
+            let endY = (1 - ((t.panPoints[t.panPoints.length-1].value + 1) / 2)) * 100;
+            svg.setAttribute('points', `0,${startY} ${pointsStr} 100,${endY}`);
+        } else {
+            svg.setAttribute('points', '');
         }
     }
 
-    // 核心：照時間軸混音編譯輸出
-    document.getElementById('export-btn').addEventListener('click', async () => {
-        if (tracks.length === 0) return alert('請至少上傳一條音軌');
+    // 核心修復：徹底重構音訊節點路由，修正音量自動化衝突
+    function buildAudioGraph(ctx, startTimeSec, renderMode = 'live') {
+        const nodesList = [];
+        const anySolo = tracks.some(t => t.solo);
+        
+        const masterGain = ctx.createGain();
+        masterGain.connect(ctx.destination);
+        
+        if (document.getElementById('master-fx').checked) {
+            const comp = ctx.createDynamicsCompressor();
+            comp.threshold.value = -12; comp.knee.value = 10;
+            comp.ratio.value = 4; comp.attack.value = 0.005; comp.release.value = 0.1;
+            masterGain.disconnect(); masterGain.connect(comp); comp.connect(ctx.destination);
+        }
 
+        const now = renderMode === 'live' ? ctx.currentTime : 0;
+        const baseTime = renderMode === 'export' ? exportStartTime : startTimeSec;
+
+        tracks.forEach(t => {
+            if (t.mute || (anySolo && !t.solo)) return;
+            if (t.offset + t.effectiveDuration <= baseTime) return; 
+            if (renderMode === 'export' && t.offset >= exportEndTime) return;
+
+            const source = ctx.createBufferSource();
+            source.buffer = t.buffer;
+            source.playbackRate.value = t.playbackRate;
+
+            const trackGain = ctx.createGain();
+            const trackPan = ctx.createStereoPanner();
+            
+            const staticGainVal = Math.pow(10, t.gainDB / 20);
+            trackPan.pan.value = t.pan;
+
+            source.connect(trackGain).connect(trackPan).connect(masterGain);
+
+            const renderStart = t.offset - baseTime;
+            const playStartTime = now + Math.max(0, renderStart);
+            const bufferOffset = Math.max(0, -renderStart) * t.playbackRate;
+            const absoluteTrackStart = now + renderStart; 
+
+            // 處理音量曲線 (Envelope)
+            if (t.envelopePoints && t.envelopePoints.length > 0) {
+                const sortedPts = [...t.envelopePoints].sort((a, b) => a.time - b.time);
+                let initVol = (sortedPts[0].time > 0) ? 0.846 : sortedPts[0].volume;
+                let initGain = Math.max(0, (initVol * 1.3) - 0.1) * staticGainVal;
+                
+                trackGain.gain.setValueAtTime(initGain, Math.max(now, absoluteTrackStart));
+
+                sortedPts.forEach(p => {
+                    let pointAbsoluteTime = absoluteTrackStart + (p.time / t.playbackRate);
+                    let val = Math.max(0, (p.volume * 1.3) - 0.1) * staticGainVal;
+                    if (pointAbsoluteTime > now) {
+                        trackGain.gain.linearRampToValueAtTime(val, pointAbsoluteTime);
+                    } else {
+                        trackGain.gain.setValueAtTime(val, now);
+                    }
+                });
+
+                let lastVol = sortedPts[sortedPts.length-1].volume;
+                let lastGain = Math.max(0, (lastVol * 1.3) - 0.1) * staticGainVal;
+                trackGain.gain.setValueAtTime(lastGain, absoluteTrackStart + t.effectiveDuration);
+            } else {
+                trackGain.gain.setValueAtTime(staticGainVal, Math.max(now, absoluteTrackStart));
+            }
+
+            // 處理聲像曲線 (Pan)
+            if (t.panPoints && t.panPoints.length > 0) {
+                const sortedPan = [...t.panPoints].sort((a,b) => a.time - b.time);
+                trackPan.pan.setValueAtTime(sortedPan[0].value, Math.max(now, absoluteTrackStart));
+                sortedPan.forEach(p => {
+                    let pointAbsoluteTime = absoluteTrackStart + (p.time / t.playbackRate);
+                    if (pointAbsoluteTime > now) {
+                        trackPan.pan.linearRampToValueAtTime(p.value, pointAbsoluteTime);
+                    } else {
+                        trackPan.pan.setValueAtTime(p.value, now);
+                    }
+                });
+                trackPan.pan.setValueAtTime(sortedPan[sortedPan.length-1].value, absoluteTrackStart + t.effectiveDuration);
+            }
+
+            source.start(playStartTime, bufferOffset);
+            nodesList.push({ source, trackGain }); 
+        });
+        return nodesList;
+    }
+
+    function startPlayback() {
+        if (isPlaying) return;
+        isPlaying = true;
+        if (coreAudioCtx.state === 'suspended') coreAudioCtx.resume();
+        
+        startRealTime = coreAudioCtx.currentTime;
+        startGlobalTime = globalTime;
+
+        liveAudioNodes = buildAudioGraph(coreAudioCtx, globalTime, 'live');
+
+        function animate() {
+            globalTime = startGlobalTime + (coreAudioCtx.currentTime - startRealTime);
+            updateAllVisuals();
+            const viewRight = viewport.scrollLeft + viewport.clientWidth;
+            if (globalTime * getPPS() > viewRight - 50) viewport.scrollLeft += 100;
+            if (isPlaying) playAnimationId = requestAnimationFrame(animate);
+        }
+        animate();
+    }
+
+    function stopAudioNodes() {
+        liveAudioNodes.forEach(node => { try{ node.source.stop() }catch(e){} });
+        liveAudioNodes = [];
+    }
+
+    document.getElementById('play-btn').addEventListener('click', startPlayback);
+
+    document.getElementById('pause-btn').addEventListener('click', () => {
+        if (!isPlaying) return;
+        isPlaying = false;
+        cancelAnimationFrame(playAnimationId);
+        stopAudioNodes();
+        updateAllVisuals();
+    });
+
+    document.getElementById('stop-btn').addEventListener('click', () => {
+        isPlaying = false;
+        cancelAnimationFrame(playAnimationId);
+        stopAudioNodes();
+        globalTime = 0; 
+        updateAllVisuals();
+    });
+
+    document.getElementById('export-btn').addEventListener('click', async () => {
+        if (tracks.length === 0) return alert('請加入音軌');
+        const dur = exportEndTime - exportStartTime; if (dur <= 0) return alert('無效範圍');
+        
         const btn = document.getElementById('export-btn');
-        btn.textContent = '⏳ 照時間軸編譯中...';
-        btn.disabled = true;
+        btn.textContent = '⏳ 母帶運算中...'; btn.disabled = true;
 
         try {
-            // 計算輸出檔總長度 (含使用者拖拉的 Offset)
-            const maxDuration = tracks.reduce((max, t) => Math.max(max, t.offset + t.duration), 0) + 2;
             const sampleRate = 44100;
-            const offlineCtx = new OfflineAudioContext(2, Math.ceil(maxDuration * sampleRate), sampleRate);
-
-            tracks.forEach(track => {
-                const source = offlineCtx.createBufferSource();
-                source.buffer = track.buffer;
-                const gainNode = offlineCtx.createGain();
-
-                // 套用音量節點 (Envelope)
-                if (track.envelopePoints && track.envelopePoints.length > 0) {
-                    const sortedPoints = [...track.envelopePoints].sort((a, b) => a.time - b.time);
-                    
-                    // 注意：Envelope 的時間是「相對於該音軌起點」，所以編譯時要加上 track.offset
-                    const startTime = track.offset;
-
-                    if (sortedPoints[0].time > 0) gainNode.gain.setValueAtTime(1, startTime);
-                    else gainNode.gain.setValueAtTime(sortedPoints[0].volume, startTime);
-
-                    sortedPoints.forEach(p => {
-                        gainNode.gain.linearRampToValueAtTime(p.volume, startTime + p.time);
-                    });
-
-                    const lastVol = sortedPoints[sortedPoints.length - 1].volume;
-                    gainNode.gain.setValueAtTime(lastVol, startTime + track.duration);
-                } else {
-                    gainNode.gain.setValueAtTime(1, 0);
-                }
-
-                source.connect(gainNode);
-                gainNode.connect(offlineCtx.destination);
-                
-                // 關鍵：依照拖拉排程的時間點 (offset) 開始播放
-                source.start(track.offset);
-            });
+            const offlineCtx = new OfflineAudioContext(2, Math.ceil(dur * sampleRate), sampleRate);
+            
+            buildAudioGraph(offlineCtx, exportStartTime, 'export');
 
             const renderedBuffer = await offlineCtx.startRendering();
             const wavBlob = audioBufferToWav(renderedBuffer);
-            
-            const downloadLink = document.createElement('a');
-            downloadLink.href = URL.createObjectURL(wavBlob);
-            downloadLink.download = 'Studio_Mixdown.wav';
-            downloadLink.click();
-
-        } catch (error) {
-            console.error(error);
-            alert('編譯失敗，請查看 Console。');
-        } finally {
-            btn.textContent = '💾 照時間軸混音並輸出 WAV';
-            btn.disabled = false;
-        }
+            const a = document.createElement('a'); a.href = URL.createObjectURL(wavBlob);
+            a.download = `Master_${exportStartTime.toFixed(1)}s_to_${exportEndTime.toFixed(1)}s.wav`; a.click();
+        } catch (e) { alert('編譯失敗'); console.error(e); } finally { btn.textContent = '💾 範圍輸出 WAV'; btn.disabled = false; }
     });
 
-    // 轉 WAV 格式演算法
     function audioBufferToWav(buffer) {
-        const numOfChan = buffer.numberOfChannels;
-        const length = buffer.length * numOfChan * 2 + 44;
-        const arrayBuffer = new ArrayBuffer(length);
-        const view = new DataView(arrayBuffer);
-        const channels = [];
-        let offset = 0, pos = 0;
-
-        const setUint16 = (data) => { view.setUint16(pos, data, true); pos += 2; };
-        const setUint32 = (data) => { view.setUint32(pos, data, true); pos += 4; };
-        
-        setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157);
-        setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
-        setUint32(buffer.sampleRate); setUint32(buffer.sampleRate * 2 * numOfChan);
-        setUint16(numOfChan * 2); setUint16(16); setUint32(0x61746164); setUint32(length - pos - 4);
-
-        for(let i = 0; i < numOfChan; i++) channels.push(buffer.getChannelData(i));
-
-        while(pos < length) {
-            for(let i = 0; i < numOfChan; i++) {
-                let sample = Math.max(-1, Math.min(1, channels[i][offset]));
-                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
-                view.setInt16(pos, sample, true); pos += 2;
-            }
-            offset++;
-        }
-        return new Blob([arrayBuffer], {type: "audio/wav"});
+        const numChan = buffer.numberOfChannels; const len = buffer.length * numChan * 2 + 44;
+        const ab = new ArrayBuffer(len); const view = new DataView(ab);
+        const channels = []; let offset = 0, pos = 0;
+        const set16 = (d) => { view.setUint16(pos, d, true); pos+=2; };
+        const set32 = (d) => { view.setUint32(pos, d, true); pos+=4; };
+        set32(0x46464952); set32(len-8); set32(0x45564157); set32(0x20746d66); set32(16); set16(1); set16(numChan);
+        set32(buffer.sampleRate); set32(buffer.sampleRate*2*numChan); set16(numChan*2); set16(16); set32(0x61746164); set32(len-pos-4);
+        for(let i=0; i<numChan; i++) channels.push(buffer.getChannelData(i));
+        while(pos < len) {
+            for(let i=0; i<numChan; i++) {
+                let smp = Math.max(-1, Math.min(1, channels[i][offset]));
+                smp = (0.5 + smp < 0 ? smp*32768 : smp*32767)|0;
+                view.setInt16(pos, smp, true); pos+=2;
+            } offset++;
+        } return new Blob([ab], {type:"audio/wav"});
     }
 </script>
 </body>
