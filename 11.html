@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LITEMIX v0.9.4 β 7</title>
+    <title>LITEMIX v0.9.5 β 8</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
@@ -139,7 +139,7 @@
 
 <div class="toolbar">
     <div class="toolbar-group">
-        <h1>LITEMIX v0.9.4 β 7</h1>
+        <h1>LITEMIX v0.9.5 β 8</h1>
         <label class="btn btn-primary" title="新增一個或多個 WAV/MP3 音軌">
             <input type="file" id="audio-upload" accept="audio/*, video/*, .wav, .mp3, .m4a" multiple>📁 新增音軌
         </label>
@@ -490,22 +490,28 @@
         // ==========================================
         // iPad / 桌機 終極修正：音量曲線 右鍵 / 雙擊 刪除邏輯
         // ==========================================
+        let lastVolTap = 0;
         const attemptDeleteVolPoint = (e) => {
             if (wsCont.style.pointerEvents === 'none') return false; 
             
-            // 統一取得座標 (支援 mouse, touch, pointer)
-            const clientX = e.clientX || (e.touches && e.touches.length > 0 ? e.touches[0].clientX : 0);
-            const clientY = e.clientY || (e.touches && e.touches.length > 0 ? e.touches[0].clientY : 0);
+            let clientX = 0, clientY = 0;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else if (e.changedTouches && e.changedTouches.length > 0) {
+                clientX = e.changedTouches[0].clientX;
+                clientY = e.changedTouches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
             
             const rect = wsCont.getBoundingClientRect();
             const clickTime = Math.max(0, (clientX - rect.left) / rect.width * tData.originalDuration);
             const clickVol = Math.max(0, Math.min(1, 1 - (clientY - rect.top) / rect.height));
             
-            // 【最關鍵修正】深拷貝 (Deep Copy) 陣列！
-            // 避免直接操作 WaveSurfer 內部的陣列記憶體位置，否則會導致 DOM 無法正確清除 (殘留圓點)
             const points = (tData.envelope.getPoints() || []).map(p => ({ time: p.time, volume: p.volume }));
             
-            // 放大觸控判定範圍至 40px，讓平板手指更好點擊
             const timeThreshold = (40 / rect.width) * tData.originalDuration; 
             const volThreshold = 40 / rect.height; 
             
@@ -526,7 +532,7 @@
             
             if (pointToRemove !== -1) {
                 points.splice(pointToRemove, 1);
-                tData.envelope.setPoints(points); // 傳入全新的拷貝陣列，強迫插件完全重繪
+                tData.envelope.setPoints(points); 
                 tData.envelopePoints = points;
                 renderVolumeLabels(tData);
                 return true; 
@@ -534,7 +540,7 @@
             return false;
         };
 
-        // 1. 強制攔截右鍵 (完美阻殺系統選單，如截圖中的狀況)
+        // 1. 強制攔截右鍵 (電腦端正常)
         wsCont.addEventListener('contextmenu', (e) => {
             e.preventDefault();   
             e.stopPropagation();
@@ -542,29 +548,35 @@
             attemptDeleteVolPoint(e); 
         }, { capture: true });
 
-        // 2. 統一攔截 PointerDown 處理雙擊 (完美相容 iPad 觸控與滑鼠)
-        let lastVolTap = 0;
-        wsCont.addEventListener('pointerdown', (e) => {
-            if (e.button === 2) return; // 右鍵已交給上方 contextmenu 處理
-            
+        // 2. 攔截 touchstart 處理雙擊 (完美相容 iPad 觸控，解決 pointerdown 被 iOS 吃掉的問題)
+        wsCont.addEventListener('touchstart', (e) => {
             const currentTime = Date.now();
             const tapLength = currentTime - lastVolTap;
-            lastVolTap = currentTime;
 
             if (tapLength < 300 && tapLength > 0) {
                 if (attemptDeleteVolPoint(e)) {
-                    // 成功刪除後，徹底阻擋事件傳遞給底層 WaveSurfer
-                    // 這樣它就不知道這裡有被點過，絕對不會再自動「補生」一個新點
                     e.preventDefault();
                     e.stopPropagation();
                     e.stopImmediatePropagation();
-                    lastVolTap = 0; 
+                    lastVolTap = 0;
                 }
+            } else {
+                lastVolTap = currentTime;
+            }
+        }, { capture: true, passive: false });
+
+        // 3. 備用：攔截 dblclick (電腦端滑鼠左鍵雙擊)
+        wsCont.addEventListener('dblclick', (e) => {
+            if (attemptDeleteVolPoint(e)) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
             }
         }, { capture: true });
 
-        // 確保聲像層也不會觸發右鍵選單
-        panLayer.addEventListener('contextmenu', (e) => e.preventDefault());
+        panLayer.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
 
 
         const btnVol = sbRow.querySelector('.auto-btn:nth-child(1)');
