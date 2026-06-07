@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LITEMIX v0.9.5 β 8</title>
+    <title>LITEMIX v0.9.6 β 9</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
@@ -112,9 +112,12 @@
 
         .audio-clip { position: absolute; top: 15px; height: 140px; background-color: var(--clip-bg); border: 1px solid var(--clip-border); border-radius: 4px; display: flex; flex-direction: column; box-shadow: 0 4px 6px rgba(0,0,0,0.5); transition: opacity 0.1s; will-change: transform, width; }
         .audio-clip.is-muted { opacity: 0.3; filter: grayscale(1); }
-        .clip-handle { height: 22px; background-color: rgba(65, 160, 255, 0.4); color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: grab; border-bottom: 1px solid var(--clip-border); z-index: 10; }
         
-        .clip-waveform { flex: 1; width: 100%; position: relative; overflow: hidden; pointer-events: none; transition: opacity 0.2s; touch-action: none; }
+        /* 賦予把手明確的 z-index 與 position，做為層級基準 */
+        .clip-handle { position: relative; height: 22px; background-color: rgba(65, 160, 255, 0.4); color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: grab; border-bottom: 1px solid var(--clip-border); z-index: 10; }
+        
+        /* 移除 overflow: hidden 讓邊界圓點完整顯示，並設定基礎 z-index */
+        .clip-waveform { flex: 1; width: 100%; position: relative; pointer-events: none; transition: opacity 0.2s; touch-action: none; z-index: 5; }
         .clip-waveform.dimmed { opacity: 0.3; }
         
         .clip-stretch-handle { position: absolute; top: 22px; bottom: 0; width: 20px; background-color: rgba(65, 160, 255, 0.25); cursor: ew-resize; z-index: 12; transition: 0.2s; }
@@ -122,9 +125,12 @@
         .clip-stretch-left { left: 0; border-right: 1px solid rgba(65, 160, 255, 0.5); }
         .clip-stretch-right { right: 0; border-left: 1px solid rgba(65, 160, 255, 0.5); }
         
-        .pan-automation-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 6; display: block; opacity: 0.2; pointer-events: none; transition: opacity 0.2s; }
-        .pan-automation-layer.active { opacity: 1; pointer-events: auto; }
+        /* 修復：將聲像區下移 22px 避開頂部把手，且設定基礎 z-index */
+        .pan-automation-layer { position: absolute; top: 22px; left: 0; width: 100%; height: calc(100% - 22px); z-index: 5; display: block; opacity: 0.2; pointer-events: none; transition: opacity 0.2s; }
         
+        /* 霸道層級：啟動編輯時，層級拉到 15 覆蓋把手 (10) */
+        .clip-waveform.active-layer, .pan-automation-layer.active { z-index: 15; pointer-events: auto; opacity: 1; }
+
         .pan-line { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         .pan-point { position: absolute; width: 18px; height: 18px; background: var(--pan-color); border: 2px solid #fff; border-radius: 50%; transform: translate(-50%, -50%); cursor: pointer; touch-action: none; }
         .pan-label { position: absolute; background: rgba(0,0,0,0.8); color: var(--pan-color); font-size: 11px; padding: 2px 4px; border-radius: 3px; transform: translate(-50%, -28px); pointer-events: none; font-weight: bold; border: 1px solid var(--pan-color); }
@@ -139,7 +145,7 @@
 
 <div class="toolbar">
     <div class="toolbar-group">
-        <h1>LITEMIX v0.9.5 β 8</h1>
+        <h1>LITEMIX v0.9.6 β 9</h1>
         <label class="btn btn-primary" title="新增一個或多個 WAV/MP3 音軌">
             <input type="file" id="audio-upload" accept="audio/*, video/*, .wav, .mp3, .m4a" multiple>📁 新增音軌
         </label>
@@ -423,7 +429,8 @@
         const stLeft = document.createElement('div'); stLeft.className = 'clip-stretch-handle clip-stretch-left';
         const stRight = document.createElement('div'); stRight.className = 'clip-stretch-handle clip-stretch-right';
         
-        const wsCont = document.createElement('div'); wsCont.className = 'clip-waveform';
+        // 音量容器預設啟用 active-layer
+        const wsCont = document.createElement('div'); wsCont.className = 'clip-waveform active-layer'; wsCont.style.pointerEvents = 'auto';
         const volLabels = document.createElement('div'); volLabels.className = 'envelope-labels-layer';
         const panLayer = document.createElement('div'); panLayer.className = 'pan-automation-layer';
         
@@ -488,7 +495,7 @@
         });
 
         // ==========================================
-        // iPad / 桌機 終極修正：音量曲線 右鍵 / 雙擊 刪除邏輯
+        // 音量曲線刪除判定 (加寬 Y 軸捕獲範圍，對付 120% 極限值)
         // ==========================================
         let lastVolTap = 0;
         const attemptDeleteVolPoint = (e) => {
@@ -508,12 +515,13 @@
             
             const rect = wsCont.getBoundingClientRect();
             const clickTime = Math.max(0, (clientX - rect.left) / rect.width * tData.originalDuration);
-            const clickVol = Math.max(0, Math.min(1, 1 - (clientY - rect.top) / rect.height));
+            // 放寬 clickVol 容忍度，不強制限制在 0~1，讓出界的點也能被比對到
+            const clickVol = 1 - (clientY - rect.top) / rect.height;
             
             const points = (tData.envelope.getPoints() || []).map(p => ({ time: p.time, volume: p.volume }));
             
             const timeThreshold = (40 / rect.width) * tData.originalDuration; 
-            const volThreshold = 40 / rect.height; 
+            const volThreshold = 50 / rect.height; // Y軸判定放寬到 50px
             
             let pointToRemove = -1;
             let minDiff = 9999;
@@ -540,7 +548,6 @@
             return false;
         };
 
-        // 1. 強制攔截右鍵 (電腦端正常)
         wsCont.addEventListener('contextmenu', (e) => {
             e.preventDefault();   
             e.stopPropagation();
@@ -548,7 +555,6 @@
             attemptDeleteVolPoint(e); 
         }, { capture: true });
 
-        // 2. 攔截 touchstart 處理雙擊 (完美相容 iPad 觸控，解決 pointerdown 被 iOS 吃掉的問題)
         wsCont.addEventListener('touchstart', (e) => {
             const currentTime = Date.now();
             const tapLength = currentTime - lastVolTap;
@@ -565,7 +571,6 @@
             }
         }, { capture: true, passive: false });
 
-        // 3. 備用：攔截 dblclick (電腦端滑鼠左鍵雙擊)
         wsCont.addEventListener('dblclick', (e) => {
             if (attemptDeleteVolPoint(e)) {
                 e.preventDefault();
@@ -574,26 +579,28 @@
             }
         }, { capture: true });
 
-        panLayer.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-        });
+        panLayer.addEventListener('contextmenu', (e) => { e.preventDefault(); });
 
-
+        // 按鈕切換邏輯：加入 .active-layer 的最高層級控制
         const btnVol = sbRow.querySelector('.auto-btn:nth-child(1)');
         const btnPan = sbRow.querySelector('.auto-btn:nth-child(2)');
         
         btnVol.addEventListener('click', () => { 
             btnVol.classList.add('active-vol'); 
             btnPan.classList.remove('active-pan'); 
+            
             panLayer.classList.remove('active'); 
             wsCont.classList.remove('dimmed');
+            wsCont.classList.add('active-layer'); // 賦予最高層次
             wsCont.style.pointerEvents = 'auto'; 
         });
         btnPan.addEventListener('click', () => { 
             btnPan.classList.add('active-pan'); 
             btnVol.classList.remove('active-vol'); 
-            panLayer.classList.add('active'); 
+            
+            panLayer.classList.add('active'); // 賦予最高層次
             wsCont.classList.add('dimmed');
+            wsCont.classList.remove('active-layer'); 
             wsCont.style.pointerEvents = 'none'; 
         });
 
