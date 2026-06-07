@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LITEMIX v0.9.2 β 6</title>
+    <title>LITEMIX v0.9.3 β 6</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
@@ -139,7 +139,7 @@
 
 <div class="toolbar">
     <div class="toolbar-group">
-        <h1>LITEMIX v0.9.2 β 5</h1>
+        <h1>LITEMIX v0.9.3 β 6</h1>
         <label class="btn btn-primary" title="新增一個或多個 WAV/MP3 音軌">
             <input type="file" id="audio-upload" accept="audio/*, video/*, .wav, .mp3, .m4a" multiple>📁 新增音軌
         </label>
@@ -488,14 +488,13 @@
         });
 
         // ==========================================
-        // iPad 修正：音量曲線專屬雙擊/雙點刪除邏輯
+        // iPad 修正：音量曲線專屬 右鍵 / 雙擊 / 雙點 刪除邏輯
         // ==========================================
         let lastVolTap = 0;
         const attemptDeleteVolPoint = (e) => {
             // 如果不在音量編輯模式，則不處理
             if (wsCont.style.pointerEvents === 'none') return false; 
-
-
+            
             let clientX = 0, clientY = 0;
             // 兼容 mouse 與 touch 事件 (包含 touchend)
             if (e.touches && e.touches.length > 0) {
@@ -508,19 +507,14 @@
                 clientX = e.clientX;
                 clientY = e.clientY;
             }
-
-
             
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             const rect = wsCont.getBoundingClientRect();
-            
             const clickTime = Math.max(0, (clientX - rect.left) / rect.width * tData.originalDuration);
             const clickVol = Math.max(0, Math.min(1, 1 - (clientY - rect.top) / rect.height));
             
             const points = tData.envelope.getPoints() || [];
             
-            // 點擊判定寬容度：大約 30 px 範圍
+            // 【優化】放大觸控判定範圍至 40px，確保平板上粗手指也極易判定
             const timeThreshold = (40 / rect.width) * tData.originalDuration; 
             const volThreshold = 40 / rect.height; 
             
@@ -549,36 +543,42 @@
             return false;
         };
 
+        // 1. 【新增】強制攔截右鍵 (解決截圖中右鍵選單彈出的問題)
         wsCont.addEventListener('contextmenu', (e) => {
             e.preventDefault();   // 永遠阻擋瀏覽器預設右鍵選單
             e.stopPropagation();
             attemptDeleteVolPoint(e); // 執行刪除
         }, { capture: true });
 
-
-        
-        // 攔截雙擊事件 (電腦與部分行動裝置觸發)
+        // 2. 強制攔截雙擊事件 (電腦版)
         wsCont.addEventListener('dblclick', (e) => {
             if (attemptDeleteVolPoint(e)) {
-                e.stopPropagation(); // 阻止 WaveSurfer 預設的新增點事件
                 e.preventDefault();
+                e.stopPropagation(); 
             }
-        }, { capture: true }); // 使用 capture 確保我們比插件更早攔截到事件
+        }, { capture: true }); 
 
-        // 攔截雙點事件 (專為 iPad/Mobile 設計)
+        // 3. 強制攔截雙點事件 (專為 iPad/Mobile 設計)
         wsCont.addEventListener('touchstart', (e) => {
             const currentTime = new Date().getTime();
             const tapLength = currentTime - lastVolTap;
+            // 雙擊判定時間：300 毫秒內連點兩下
             if (tapLength < 300 && tapLength > 0) {
                 if (attemptDeleteVolPoint(e)) {
-                    e.stopPropagation();
                     e.preventDefault();
+                    e.stopPropagation();
                 }
                 lastVolTap = 0;
             } else {
                 lastVolTap = currentTime;
             }
         }, { capture: true, passive: false });
+
+        // 同步保護：避免使用者在聲像層 (Pan) 點偏時，跳出右鍵選單
+        panLayer.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+
 
         const btnVol = sbRow.querySelector('.auto-btn:nth-child(1)');
         const btnPan = sbRow.querySelector('.auto-btn:nth-child(2)');
@@ -615,7 +615,6 @@
         
         panLayer.addEventListener('dblclick', addPanPoint);
         panLayer.addEventListener('touchstart', (e) => {
-            e.preventDefault();
             const currentTime = new Date().getTime();
             const tapLength = currentTime - lastLayerTap;
             if (tapLength < 300 && tapLength > 0) {
