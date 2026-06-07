@@ -7,43 +7,45 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
-            --bg-main: #212020; 
-            --bg-panel: #292828; 
-            --bg-toolbar: #242323;
-            --border-color: #424140; 
-            --text-main: #e8e0dc; 
-            --text-muted: #c7186f;
             
-            --track-bg: #291d19; 
-            --clip-bg: rgba(72, 199, 144, 0.15); 
-            --clip-border: #48c790;
+            --bg-main: #0a0e14;       
+            --bg-panel: #111820;      
+            --bg-toolbar: #1a222e;    
+            --border-color: #3b4d61;  
             
-            --wave-color: #48c790; 
-            --wave-progress: #8af0c6;
+            --text-main: #d1d8e0;     
+            --text-muted: #7b8c9e;    
             
-            --accent-play: #48c790; 
-            --accent-pause: #ffcf54; 
+            --track-bg: #161e29;      
+            --clip-bg: rgba(65, 160, 255, 0.15); 
+            --clip-border: #41a0ff;   
             
-            --btn-mute: #a60303; 
-            --btn-solo: #fae9be; 
-            --pan-color: #ff9d5c;
+            --wave-color: #41a0ff;    
+            --wave-progress: #82c4ff;
+            
+            --accent-play: #48c790;   
+            --accent-pause: #ffcf54;  
+            
+            --vol-color: #48c790;     
+            --pan-color: #ff6b8b;     
+            --btn-mute: #ff4757;      
+            --btn-solo: #1e90ff;      
         }
         
         ::-webkit-scrollbar { width: 12px; height: 12px; }
         ::-webkit-scrollbar-track { background: var(--bg-main); }
         ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 6px; border: 3px solid var(--bg-main); }
-        ::-webkit-scrollbar-thumb:hover { background: #7a5c51; }
+        ::-webkit-scrollbar-thumb:hover { background: #5c7793; }
 
         html, body { margin: 0; padding: 0; width: 100vw; height: 100vh; font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg-main); color: var(--text-main); display: flex; flex-direction: column; overflow: hidden; }
 
-        /* Toolbar */
-        .toolbar { background-color: var(--bg-toolbar); padding: 8px 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); z-index: 50; flex-wrap: wrap; gap: 10px; }
+        .toolbar { background-color: var(--bg-toolbar); padding: 8px 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); z-index: 50; flex-wrap: wrap; gap: 10px; flex-shrink: 0; }
         .toolbar-group { display: flex; align-items: center; gap: 8px; }
         h1 { margin: 0; font-size: 16px; color: var(--text-main); font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
         input[type="file"] { display: none; }
         
-        .btn { background-color: #4a3630; color: #fff; border: 1px solid #6e5248; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.2s; }
-        .btn:hover:not(:disabled) { background-color: #6e5248; }
+        .btn { background-color: #232f3e; color: #fff; border: 1px solid #3b4d61; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.2s; }
+        .btn:hover:not(:disabled) { background-color: #3b4d61; }
         .btn:disabled { opacity: 0.4; cursor: not-allowed; }
         
         .btn-primary { background-color: var(--clip-border); color: #000; border: none; }
@@ -57,74 +59,94 @@
         .control-group input[type="number"] { width: 55px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #555; border-radius: 2px; text-align: center; font-family: monospace; font-size: 12px;}
         .control-group select { background: transparent; color: #fff; border: none; outline: none; cursor: pointer; }
 
-        /* Workspace & Tracks */
+        
         .workspace { flex: 1; display: flex; overflow: hidden; position: relative; }
-        .sidebar { width: 260px; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; z-index: 20; flex-shrink: 0; overflow-y: auto; }
+        
+        .sidebar { width: 260px; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; z-index: 20; flex-shrink: 0; }
         .sidebar-header, .ruler { height: 30px; min-height: 30px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-toolbar); flex-shrink: 0; }
         
-        .sidebar-track { height: 170px; min-height: 170px; border-bottom: 1px solid var(--border-color); padding: 8px 12px; display: flex; flex-direction: column; background-color: var(--track-bg); box-sizing: border-box;}
-        .timeline-track-row { height: 170px; min-height: 170px; border-bottom: 1px solid var(--border-color); position: relative; width: 100%; box-sizing: border-box;}
+        #sidebar-tracks-container { flex: 1; overflow-y: hidden; display: flex; flex-direction: column; }
         
-        #sidebar-tracks, #tracks-content { display: flex; flex-direction: column; }
         
-        .track-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2px; }
-        .track-name { font-size: 13px; font-weight: bold; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 190px; }
-        .btn-delete { background: transparent; color: var(--btn-mute); border: none; font-size: 14px; cursor: pointer; padding: 0 4px;}
+        #sidebar-tracks { display: flex; flex-direction: column; padding-bottom: 12px; }
+        #tracks-content { display: flex; flex-direction: column; }
+        
+        .sidebar-track { height: 170px; min-height: 170px; border-bottom: 2px solid var(--border-color); padding: 8px 12px; display: flex; flex-direction: column; background-color: var(--track-bg); box-sizing: border-box;}
+        .timeline-track-row { height: 170px; min-height: 170px; border-bottom: 2px solid var(--border-color); position: relative; width: 100%; box-sizing: border-box;}
+        
+        .track-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; gap: 8px; }
+        .track-name { font-size: 13px; font-weight: bold; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+        .btn-delete { background: transparent; color: #ff4757; border: none; font-size: 16px; cursor: pointer; padding: 0; flex-shrink: 0; opacity: 0.7; transition: 0.2s;}
+        .btn-delete:hover { opacity: 1; transform: scale(1.2); }
         
         .ms-group { display: flex; gap: 8px; margin-bottom: 4px; margin-top: 4px;}
-        .btn-mute, .btn-solo { flex: 1; height: 24px; border-radius: 4px; border: 1px solid #555; background: #2d2d30; color: #aaa; font-weight: bold; cursor: pointer; font-size: 11px; letter-spacing: 1px; transition: 0.2s;}
+        .btn-mute, .btn-solo { flex: 1; height: 24px; border-radius: 4px; border: 1px solid #555; background: #1a222e; color: #aaa; font-weight: bold; cursor: pointer; font-size: 11px; letter-spacing: 1px; transition: 0.2s;}
+        
         .btn-mute.active { background-color: var(--btn-mute); color: #fff; border-color: var(--btn-mute); }
-        .btn-solo.active { background-color: var(--btn-solo); color: #000; border-color: var(--btn-solo); }
+        .btn-solo.active { background-color: var(--btn-solo); color: #fff; border-color: var(--btn-solo); }
 
         .slider-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-        .slider-row input[type=range] { width: 100px; accent-color: var(--clip-border); }
-        .slider-row input.pan-slider { accent-color: var(--pan-color); }
+        
+        .slider-row input.gain-slider { accent-color: var(--vol-color); width: 100px; }
+        .slider-row input.pan-slider { accent-color: var(--pan-color); width: 100px; }
+        
         .val-display { font-family: monospace; width: 40px; text-align: right; color: var(--text-main); }
 
         .auto-mode-switch { display: flex; background: rgba(0,0,0,0.3); border-radius: 4px; overflow: hidden; margin-top: 6px; border: 1px solid var(--border-color); }
-        .auto-btn { flex: 1; padding: 4px 0; text-align: center; font-size: 10px; cursor: pointer; background: transparent; color: #888; border: none; font-weight: bold; }
-        .auto-btn.active-vol { background: #574038; color: #fff; }
-        .auto-btn.active-pan { background: var(--pan-color); color: #000; }
+        .auto-btn { flex: 1; padding: 4px 0; text-align: center; font-size: 10px; cursor: pointer; background: transparent; color: #888; border: none; font-weight: bold; transition: 0.2s; }
+        
+        .auto-btn.active-vol { background: var(--vol-color); color: #000; }
+        .auto-btn.active-pan { background: var(--pan-color); color: #fff; }
 
-        /* Timeline View */
+        
         .timeline-viewport { flex: 1; overflow-x: auto; overflow-y: auto; position: relative; background-color: var(--bg-main); outline: none; }
         .timeline-container { position: relative; display: flex; flex-direction: column; min-height: 100%;}
         .ruler { position: sticky; top: 0; z-index: 15; cursor: pointer; color: var(--text-muted); }
-        .ruler-tick { position: absolute; top: 0; height: 100%; border-left: 1px solid #444; padding-left: 4px; font-size: 11px; display: flex; align-items: flex-end; padding-bottom: 2px; pointer-events: none; }
+        .ruler-tick { position: absolute; top: 0; height: 100%; border-left: 1px solid var(--border-color); padding-left: 4px; font-size: 11px; display: flex; align-items: flex-end; padding-bottom: 2px; pointer-events: none; }
 
-        /* Time Markers (播放線與匯出範圍線) */
         .time-marker { position: absolute; top: 0; bottom: 0; width: 2px; z-index: 25; pointer-events: none; }
         .time-marker-handle { position: absolute; top: 0; display: flex; justify-content: center; align-items: center; cursor: grab; pointer-events: auto; height: 30px; }
         
-        /* 播放線：高亮純白 */
         .playhead { background-color: #ffffff; z-index: 26; box-shadow: 0 0 6px rgba(255,255,255,0.8); }
         .playhead-handle { left: -30px; width: 60px; }
         .playhead-handle::before { content: '▶'; font-size: 10px; background: #ffffff; color: #000; padding: 2px 6px; border-radius: 3px; font-weight: bold; }
         
-        /* 範圍標記線：藍與紅 */
         .export-start { background-color: #2196f3; z-index: 24; box-shadow: 0 0 4px rgba(33,150,243,0.5); }
         .export-end { background-color: #ff5722; z-index: 24; box-shadow: 0 0 4px rgba(255,87,34,0.5); }
         
-        .timeline-grid { position: absolute; top: 30px; left: 0; right: 0; bottom: 0; background-image: linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px); pointer-events: none; z-index: 0; }
+        .timeline-grid { position: absolute; top: 30px; left: 0; right: 0; bottom: 0; background-image: linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px); pointer-events: none; z-index: 0; }
 
-        /* Audio Clip Visuals */
         .audio-clip { position: absolute; top: 15px; height: 140px; background-color: var(--clip-bg); border: 1px solid var(--clip-border); border-radius: 4px; display: flex; flex-direction: column; box-shadow: 0 4px 6px rgba(0,0,0,0.5); transition: opacity 0.1s; }
         .audio-clip.is-muted { opacity: 0.3; filter: grayscale(1); }
-        .clip-handle { height: 18px; background-color: rgba(72, 199, 144, 0.4); color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: grab; border-bottom: 1px solid var(--clip-border); z-index: 10; }
+        .clip-handle { height: 18px; background-color: rgba(65, 160, 255, 0.4); color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: grab; border-bottom: 1px solid var(--clip-border); z-index: 10; }
         .clip-waveform { flex: 1; width: 100%; position: relative; overflow: hidden; }
-        .clip-stretch-handle { position: absolute; top: 18px; bottom: 0; width: 14px; background-color: rgba(72, 199, 144, 0.25); cursor: ew-resize; z-index: 12; transition: 0.2s; }
-        .clip-stretch-handle:hover { background-color: rgba(72, 199, 144, 0.5); }
-        .clip-stretch-left { left: 0; border-right: 1px solid rgba(72, 199, 144, 0.5); }
-        .clip-stretch-right { right: 0; border-left: 1px solid rgba(72, 199, 144, 0.5); }
+        .clip-stretch-handle { position: absolute; top: 18px; bottom: 0; width: 14px; background-color: rgba(65, 160, 255, 0.25); cursor: ew-resize; z-index: 12; transition: 0.2s; }
+        .clip-stretch-handle:hover { background-color: rgba(65, 160, 255, 0.5); }
+        .clip-stretch-left { left: 0; border-right: 1px solid rgba(65, 160, 255, 0.5); }
+        .clip-stretch-right { right: 0; border-left: 1px solid rgba(65, 160, 255, 0.5); }
         
-        /* Automation Layers */
         .pan-automation-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 6; pointer-events: auto; display: none; }
         .pan-automation-layer.active { display: block; }
         .pan-line { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         .pan-point { position: absolute; width: 12px; height: 12px; background: var(--pan-color); border: 2px solid #fff; border-radius: 50%; transform: translate(-50%, -50%); cursor: pointer; }
-        .pan-label { position: absolute; background: rgba(0,0,0,0.8); color: var(--pan-color); font-size: 10px; padding: 2px 4px; border-radius: 3px; transform: translate(-50%, -25px); pointer-events: none; font-weight: bold; }
+        .pan-label { position: absolute; background: rgba(0,0,0,0.8); color: var(--pan-color); font-size: 10px; padding: 2px 4px; border-radius: 3px; transform: translate(-50%, -25px); pointer-events: none; font-weight: bold; border: 1px solid var(--pan-color); }
+        
         .envelope-labels-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
-        .env-label { position: absolute; background: rgba(0,0,0,0.85); color: #fff; font-size: 10px; padding: 2px 4px; border-radius: 3px; font-weight: bold; pointer-events: none; border: 1px solid #555; }
+        .env-label { position: absolute; background: rgba(0,0,0,0.85); color: var(--vol-color); font-size: 10px; padding: 2px 4px; border-radius: 3px; font-weight: bold; pointer-events: none; border: 1px solid var(--vol-color); }
+        
+        .app-footer {
+            height: 24px;
+            background-color: var(--bg-toolbar);
+            border-top: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 1px;
+            flex-shrink: 0;
+            z-index: 100;
+        }
     </style>
 </head>
 <body>
@@ -135,10 +157,10 @@
         <label class="btn btn-primary" title="新增一個或多個 WAV/MP3 音軌">
             <input type="file" id="audio-upload" accept="audio/*" multiple>📁 新增音軌
         </label>
-        <label class="btn" style="background:#2a4d46; border-color:#366158; color:#a3ffd9;" title="開啟 .lmix 專案檔">
+        <label class="btn" style="background:#1b395e; border-color:#2b5080; color:#a1ccff;" title="開啟 .lmix 專案檔">
             <input type="file" id="project-upload" accept=".lmix">📂 開啟專案
         </label>
-        <button id="project-save-btn" class="btn" style="background:#2a4d46; border-color:#366158; color:#a3ffd9;" title="儲存為 .lmix 專案檔">💾 儲存專案</button>
+        <button id="project-save-btn" class="btn" style="background:#1b395e; border-color:#2b5080; color:#a1ccff;" title="儲存為 .lmix 專案檔">💾 儲存專案</button>
     </div>
 
     <div class="toolbar-group">
@@ -176,7 +198,9 @@
 <div class="workspace">
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header"></div>
-        <div id="sidebar-tracks"></div>
+        <div id="sidebar-tracks-container">
+            <div id="sidebar-tracks"></div>
+        </div>
     </div>
     
     <div class="timeline-viewport" id="viewport" tabindex="0">
@@ -201,6 +225,10 @@
     </div>
 </div>
 
+<div class="app-footer">
+    Anshaer Studio &nbsp;|&nbsp; © 2026 Anshaer All Rights Reserved.
+</div>
+
 <script type="module">
     import WaveSurfer from 'https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.esm.js';
     import EnvelopePlugin from 'https://unpkg.com/wavesurfer.js@7/dist/plugins/envelope.esm.js';
@@ -222,15 +250,15 @@
     let tracks = [], globalTime = 0, exportStartTime = 0, exportEndTime = 10;
     let isPlaying = false, playAnimationId, startRealTime = 0, startGlobalTime = 0, liveAudioNodes = []; 
 
-    // 生成標準時間戳記函數
     function getFileTimestamp() {
         const d = new Date();
         const pad = n => n.toString().padStart(2, '0');
         return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
     }
 
-    // UI 與滾輪縮放 (Y軸同步)
-    viewport.addEventListener('scroll', () => { document.getElementById('sidebar').scrollTop = viewport.scrollTop; });
+    viewport.addEventListener('scroll', () => { 
+        document.getElementById('sidebar-tracks-container').scrollTop = viewport.scrollTop; 
+    });
     viewport.addEventListener('wheel', (e) => {
         if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
@@ -240,7 +268,6 @@
         }
     }, { passive: false });
 
-    // 播放頭與標記線的磁吸 (音軌拖拉不使用此磁吸)
     const snapToggle = document.getElementById('snap-toggle');
     const snapGrid = document.getElementById('snap-grid');
     function applySnap(timeSec) {
@@ -248,7 +275,6 @@
         return Math.round(timeSec / parseFloat(snapGrid.value)) * parseFloat(snapGrid.value);
     }
 
-    // 時間輸入框同步
     const playheadInput = document.getElementById('playhead-input');
     const expStartInput = document.getElementById('exp-start-input');
     const expEndInput = document.getElementById('exp-end-input');
@@ -270,9 +296,6 @@
         updateAllVisuals();
     });
 
-    // ==========================================
-    // 渲染更新控制
-    // ==========================================
     function updateAllVisuals() {
         const pps = getPPS();
         const maxTrackTime = tracks.reduce((max, t) => Math.max(max, t.offset + t.effectiveDuration), 0);
@@ -308,7 +331,6 @@
         });
     }
 
-    // 標記線拖拉
     function setupMarkerDrag(handle, onDrag, onDrop) {
         let isDragging = false;
         handle.addEventListener('mousedown', (e) => { isDragging = true; e.stopPropagation(); });
@@ -333,9 +355,6 @@
         if (isPlaying) { stopAudioNodes(); startPlayback(); }
     });
 
-    // ==========================================
-    // 音軌建構與載入
-    // ==========================================
     document.getElementById('audio-upload').addEventListener('change', async (e) => {
         for (const file of Array.from(e.target.files)) await createTrack(file, file.name);
         e.target.value = ''; 
@@ -362,7 +381,7 @@
                 <button class="btn-mute ${restoreData && restoreData.mute ? 'active':''}">M 靜音</button>
                 <button class="btn-solo ${restoreData && restoreData.solo ? 'active':''}">S 獨奏</button>
             </div>
-            <div class="slider-row">Vol <input type="range" class="gain-slider" min="-24" max="12" step="0.1" value="${restoreData ? restoreData.gainDB : 0}"><span class="val-display gain-value">${restoreData ? restoreData.gainDB.toFixed(1) : '0.0'}</span></div>
+            <div class="slider-row">Vol <input type="range" class="vol-slider gain-slider" min="-24" max="12" step="0.1" value="${restoreData ? restoreData.gainDB : 0}"><span class="val-display gain-value">${restoreData ? restoreData.gainDB.toFixed(1) : '0.0'}</span></div>
             <div class="slider-row">Pan <input type="range" class="pan-slider" min="-1" max="1" step="0.01" value="${restoreData ? restoreData.pan : 0}"><span class="val-display pan-value">C</span></div>
             <div class="auto-mode-switch"><button class="auto-btn active-vol">音量曲線</button><button class="auto-btn">聲像曲線</button></div>
         `;
@@ -384,10 +403,19 @@
         clip.append(dragHandle, stLeft, stRight, wsCont);
         tRow.appendChild(clip); tracksContent.appendChild(tRow);
 
-        const ws = WaveSurfer.create({ container: wsCont, waveColor: '#48c790', cursorColor: 'transparent', height: 'auto', normalize: true, interact: false });
+        const ws = WaveSurfer.create({ container: wsCont, waveColor: '#41a0ff', cursorColor: 'transparent', height: 'auto', normalize: true, interact: false });
         ws.setVolume(0); 
 
-        const envOpts = { volume: 0.846, lineColor: 'rgba(255,255,255,0.8)', lineWidth: 3, dragPointSize: 20, dragLine: true, dragPoint: true };
+        const envOpts = { 
+            volume: 0.846, 
+            lineColor: '#48c790', 
+            dragPointFill: '#48c790', 
+            dragPointStroke: '#ffffff',
+            lineWidth: 3, 
+            dragPointSize: 20, 
+            dragLine: true, 
+            dragPoint: true 
+        };
         if (restoreData && restoreData.volPoints) envOpts.points = restoreData.volPoints;
 
         const tData = {
@@ -450,9 +478,6 @@
         tracks.push(tData);
         updateAllVisuals();
 
-       
-        // 順暢拉伸
-       
         let isDrag = false, activeAction = null, sx = 0, sL = 0, sW = 0;
         
         const startAction = (e, action) => { 
@@ -472,18 +497,15 @@
             const pps = getPPS();
 
             if (activeAction === 'move') {
-                // 移動：即時跟隨
                 let newLeft = Math.max(0, sL + deltaX);
                 tData.offset = newLeft / pps;
             } 
             else if (activeAction === 'stretch-r') {
-                // 向右拉伸/壓縮：終點即時跟隨
                 let newWidth = Math.max(20, sW + deltaX);
                 tData.effectiveDuration = newWidth / pps;
             } 
             else if (activeAction === 'stretch-l') {
-                // 向左拉伸/壓縮：起點即時跟隨
-                let maxDelta = sW - 20; // 確保最小寬度為 20px
+                let maxDelta = sW - 20; 
                 let allowedDelta = deltaX > maxDelta ? maxDelta : deltaX;
                 
                 let newLeft = sL + allowedDelta;
@@ -497,10 +519,7 @@
                 tData.effectiveDuration = newWidth / pps;
             }
             
-            // 即時更新播放速度
             tData.playbackRate = tData.originalDuration / tData.effectiveDuration;
-            
-            // 強制畫面即刻跟隨，達到無延遲手感
             updateAllVisuals();
         });
 
@@ -565,9 +584,6 @@
         }
     }
 
-    
-    // 專案輸入輸出系統 (.lmix ZIP)
-    
     document.getElementById('project-save-btn').addEventListener('click', async () => {
         if (tracks.length === 0) return alert('無任何音軌可供儲存！');
         
@@ -619,7 +635,6 @@
 
             const projectData = JSON.parse(await projFile.async("string"));
 
-            // 清理環境
             stopAudioNodes();
             tracks.forEach(t => { t.wavesurfer.destroy(); t.sidebarRow.remove(); t.trackRow.remove(); });
             tracks = [];
@@ -641,9 +656,6 @@
         e.target.value = '';
     });
 
-    
-    // 播放與匯出 Web Audio Engine
- 
     function buildAudioGraph(ctx, startTimeSec, renderMode = 'live') {
         const nodesList = [];
         const anySolo = tracks.some(t => t.solo);
@@ -683,7 +695,6 @@
             const bufferOffset = Math.max(0, -renderStart) * t.playbackRate;
             const absoluteTrackStart = now + renderStart; 
 
-            // Volume Env Engine
             if (t.envelopePoints && t.envelopePoints.length > 0) {
                 const sortedPts = [...t.envelopePoints].sort((a, b) => a.time - b.time);
                 let initVol = (sortedPts[0].time > 0) ? 0.846 : sortedPts[0].volume;
@@ -703,7 +714,6 @@
                 trackGain.gain.setValueAtTime(staticGainVal, Math.max(now, absoluteTrackStart));
             }
 
-            // Pan Env Engine
             if (t.panPoints && t.panPoints.length > 0) {
                 const sortedPan = [...t.panPoints].sort((a,b) => a.time - b.time);
                 trackPan.pan.setValueAtTime(sortedPan[0].value, Math.max(now, absoluteTrackStart));
@@ -772,7 +782,6 @@
             const wavBlob = audioBufferToWav(renderedBuffer);
             const a = document.createElement('a'); a.href = URL.createObjectURL(wavBlob);
             
-            // 使用嚴格指定的時間格式命名匯出 WAV
             a.download = `LiteMix_${getFileTimestamp()}_${exportStartTime.toFixed(1)}_to_${exportEndTime.toFixed(1)}.wav`; 
             a.click();
             
