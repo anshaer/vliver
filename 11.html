@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LITEMIX v0.8.8 β 2 (iPad Optimized)</title>
+    <title>LITEMIX v0.9.1 β 4</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
@@ -43,7 +43,7 @@
         h1 { margin: 0; font-size: 16px; color: var(--text-main); font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
         input[type="file"] { display: none; }
         
-        .btn { background-color: #232f3e; color: #fff; border: 1px solid #3b4d61; padding: 8px 16px; /* 增加 iPad 點擊面積 */ border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; transition: 0.2s; }
+        .btn { background-color: #232f3e; color: #fff; border: 1px solid #3b4d61; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; transition: 0.2s; }
         .btn:hover:not(:disabled) { background-color: #3b4d61; }
         .btn:disabled { opacity: 0.4; cursor: not-allowed; }
         
@@ -87,8 +87,9 @@
         .slider-row input.pan-slider { accent-color: var(--pan-color); width: 100px; }
         .val-display { font-family: monospace; width: 40px; text-align: right; color: var(--text-main); }
 
-        .auto-mode-switch { display: flex; background: rgba(0,0,0,0.3); border-radius: 4px; overflow: hidden; margin-top: 8px; border: 1px solid var(--border-color); }
-        .auto-btn { flex: 1; padding: 6px 0; text-align: center; font-size: 11px; cursor: pointer; background: transparent; color: #888; border: none; font-weight: bold; transition: 0.2s; }
+        /* iPad 修正：固定高度、垂直置中、防止螢幕雙擊縮放 */
+        .auto-mode-switch { display: flex; background: rgba(0,0,0,0.3); border-radius: 6px; overflow: hidden; margin-top: 8px; border: 1px solid var(--border-color); height: 36px; }
+        .auto-btn { flex: 1; display: flex; justify-content: center; align-items: center; font-size: 13px; cursor: pointer; background: transparent; color: #888; border: none; font-weight: bold; transition: 0.2s; touch-action: manipulation; }
         
         .auto-btn.active-vol { background: var(--vol-color); color: #000; }
         .auto-btn.active-pan { background: var(--pan-color); color: #fff; }
@@ -113,16 +114,22 @@
         .audio-clip { position: absolute; top: 15px; height: 140px; background-color: var(--clip-bg); border: 1px solid var(--clip-border); border-radius: 4px; display: flex; flex-direction: column; box-shadow: 0 4px 6px rgba(0,0,0,0.5); transition: opacity 0.1s; will-change: transform, width; }
         .audio-clip.is-muted { opacity: 0.3; filter: grayscale(1); }
         .clip-handle { height: 22px; background-color: rgba(65, 160, 255, 0.4); color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: grab; border-bottom: 1px solid var(--clip-border); z-index: 10; }
-        .clip-waveform { flex: 1; width: 100%; position: relative; overflow: hidden; pointer-events: none; } /* iPad 修正：避免波形干擾拖拉 */
+        
+        /* 音量波形容器淡化處理 */
+        .clip-waveform { flex: 1; width: 100%; position: relative; overflow: hidden; pointer-events: none; transition: opacity 0.2s; }
+        .clip-waveform.dimmed { opacity: 0.3; }
+        
         .clip-stretch-handle { position: absolute; top: 22px; bottom: 0; width: 20px; background-color: rgba(65, 160, 255, 0.25); cursor: ew-resize; z-index: 12; transition: 0.2s; }
         .clip-stretch-handle:hover { background-color: rgba(65, 160, 255, 0.5); }
         .clip-stretch-left { left: 0; border-right: 1px solid rgba(65, 160, 255, 0.5); }
         .clip-stretch-right { right: 0; border-left: 1px solid rgba(65, 160, 255, 0.5); }
         
-        .pan-automation-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 6; pointer-events: auto; display: none; }
-        .pan-automation-layer.active { display: block; }
+        /* 聲像曲線半透明顯示處理 */
+        .pan-automation-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 6; display: block; opacity: 0.2; pointer-events: none; transition: opacity 0.2s; }
+        .pan-automation-layer.active { opacity: 1; pointer-events: auto; }
+        
         .pan-line { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        .pan-point { position: absolute; width: 16px; height: 16px; background: var(--pan-color); border: 2px solid #fff; border-radius: 50%; transform: translate(-50%, -50%); cursor: pointer; }
+        .pan-point { position: absolute; width: 18px; height: 18px; background: var(--pan-color); border: 2px solid #fff; border-radius: 50%; transform: translate(-50%, -50%); cursor: pointer; touch-action: none; }
         .pan-label { position: absolute; background: rgba(0,0,0,0.8); color: var(--pan-color); font-size: 11px; padding: 2px 4px; border-radius: 3px; transform: translate(-50%, -28px); pointer-events: none; font-weight: bold; border: 1px solid var(--pan-color); }
         
         .envelope-labels-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
@@ -135,7 +142,7 @@
 
 <div class="toolbar">
     <div class="toolbar-group">
-        <h1>LITEMIX (iPad 版)</h1>
+        <h1>LITEMIX v0.9.1 β 4</h1>
         <label class="btn btn-primary" title="新增一個或多個 WAV/MP3 音軌">
             <input type="file" id="audio-upload" accept="audio/*, video/*, .wav, .mp3, .m4a" multiple>📁 新增音軌
         </label>
@@ -218,7 +225,6 @@
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     const coreAudioCtx = new AudioContextClass(); 
 
-    // iPad 修正：全局觸控解鎖 AudioContext
     const unlockAudioContext = () => {
         if (coreAudioCtx.state === 'suspended') {
             coreAudioCtx.resume().then(() => console.log('AudioContext 已解鎖'));
@@ -308,7 +314,6 @@
             ruler.appendChild(tick);
         }
 
-        // iPad 修正：改用 transform 以啟用硬體加速
         playhead.style.transform = `translateX(${globalTime * pps}px)`;
         expStartLine.style.transform = `translateX(${exportStartTime * pps}px)`;
         expEndLine.style.transform = `translateX(${exportEndTime * pps}px)`;
@@ -331,11 +336,10 @@
     function setupMarkerDrag(handle, onDrag, onDrop) {
         let isDragging = false;
         
-        // iPad 修正：支援 Touch 事件
         const startDrag = (e) => { 
             isDragging = true; 
             e.stopPropagation(); 
-            if(e.type === 'touchstart') e.preventDefault(); // 防止滾動
+            if(e.type === 'touchstart') e.preventDefault(); 
         };
         const moveDrag = (e) => {
             if (!isDragging) return;
@@ -369,7 +373,7 @@
     });
 
     document.getElementById('audio-upload').addEventListener('change', async (e) => {
-        unlockAudioContext(); // 確保上傳時 Context 是解鎖的
+        unlockAudioContext(); 
         for (const file of Array.from(e.target.files)) {
             await createTrack(file, file.name);
         }
@@ -382,16 +386,14 @@
         let objUrl;
         
         try {
-            // iPad 修正：確保在解碼前 Context 是活躍的
             if (coreAudioCtx.state === 'suspended') await coreAudioCtx.resume();
-            
             const arrayBuffer = await fileOrBlob.arrayBuffer();
             buffer = await coreAudioCtx.decodeAudioData(arrayBuffer);
             objUrl = URL.createObjectURL(fileOrBlob);
         } catch (err) {
             alert(`載入音訊失敗 (${fileName})\n錯誤訊息: ${err.message || '請確認檔案格式是否正確'}`);
             console.error('Decode Error:', err);
-            return; // 終止載入此軌道
+            return; 
         }
         
         const origDur = buffer.duration;
@@ -423,13 +425,14 @@
         const dragHandle = document.createElement('div'); dragHandle.className = 'clip-handle'; dragHandle.textContent = '⋮⋮ 拖拉移動 ⋮⋮';
         const stLeft = document.createElement('div'); stLeft.className = 'clip-stretch-handle clip-stretch-left';
         const stRight = document.createElement('div'); stRight.className = 'clip-stretch-handle clip-stretch-right';
-        const wsCont = document.createElement('div'); wsCont.className = 'clip-waveform';
         
+        // 修正 DOM 結構：讓 panLayer 獨立於 wsCont 外，確保淡化時不干擾聲像層
+        const wsCont = document.createElement('div'); wsCont.className = 'clip-waveform';
         const volLabels = document.createElement('div'); volLabels.className = 'envelope-labels-layer';
         const panLayer = document.createElement('div'); panLayer.className = 'pan-automation-layer';
         
-        wsCont.appendChild(volLabels); wsCont.appendChild(panLayer);
-        clip.append(dragHandle, stLeft, stRight, wsCont);
+        wsCont.appendChild(volLabels); 
+        clip.append(dragHandle, stLeft, stRight, wsCont, panLayer);
         tRow.appendChild(clip); tracksContent.appendChild(tRow);
 
         const ws = WaveSurfer.create({ container: wsCont, waveColor: '#41a0ff', cursorColor: 'transparent', height: 'auto', normalize: true, interact: false });
@@ -441,7 +444,7 @@
             dragPointFill: '#48c790', 
             dragPointStroke: '#ffffff',
             lineWidth: 3, 
-            dragPointSize: 24, // iPad 修正：加大觸控點
+            dragPointSize: 24, 
             dragLine: true, 
             dragPoint: true 
         };
@@ -458,7 +461,7 @@
             panPoints: restoreData && Array.isArray(restoreData.panPoints) ? restoreData.panPoints : [], 
             panLayer: panLayer, wsCont: wsCont, volLabels: volLabels,
             envelope: ws.registerPlugin(EnvelopePlugin.create(envOpts)),
-            objectUrl: objUrl // 儲存 URL 供後續清理
+            objectUrl: objUrl 
         };
 
         const gSlider = sbRow.querySelector('.gain-slider'); const gVal = sbRow.querySelector('.gain-value');
@@ -478,7 +481,7 @@
 
         sbRow.querySelector('.btn-delete').addEventListener('click', () => {
             ws.destroy(); sbRow.remove(); tRow.remove();
-            URL.revokeObjectURL(tData.objectUrl); // iPad 修正：釋放記憶體
+            URL.revokeObjectURL(tData.objectUrl); 
             tracks = tracks.filter(t => t.id !== trackId);
             updateAllVisuals();
         });
@@ -490,18 +493,49 @@
 
         const btnVol = sbRow.querySelector('.auto-btn:nth-child(1)');
         const btnPan = sbRow.querySelector('.auto-btn:nth-child(2)');
-        btnVol.addEventListener('click', () => { btnVol.classList.add('active-vol'); btnPan.classList.remove('active-pan'); panLayer.classList.remove('active'); wsCont.style.pointerEvents = 'auto'; });
-        btnPan.addEventListener('click', () => { btnPan.classList.add('active-pan'); btnVol.classList.remove('active-vol'); panLayer.classList.add('active'); wsCont.style.pointerEvents = 'none'; });
+        
+        btnVol.addEventListener('click', () => { 
+            btnVol.classList.add('active-vol'); 
+            btnPan.classList.remove('active-pan'); 
+            panLayer.classList.remove('active'); 
+            wsCont.classList.remove('dimmed');
+            wsCont.style.pointerEvents = 'auto'; 
+        });
+        btnPan.addEventListener('click', () => { 
+            btnPan.classList.add('active-pan'); 
+            btnVol.classList.remove('active-vol'); 
+            panLayer.classList.add('active'); 
+            wsCont.classList.add('dimmed');
+            wsCont.style.pointerEvents = 'none'; 
+        });
 
         panLayer.innerHTML = `<svg class="pan-line" preserveAspectRatio="none" viewBox="0 0 100 100" width="100%" height="100%"><polyline fill="none" stroke="var(--pan-color)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`;
-        panLayer.addEventListener('dblclick', (e) => {
+        
+        // 加入 iPad 雙擊 (Double-Tap) 新增聲像點的邏輯
+        let lastLayerTap = 0;
+        const addPanPoint = (e) => {
+            e.preventDefault();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             const rect = panLayer.getBoundingClientRect();
-            const time = (e.clientX - rect.left) / rect.width * tData.originalDuration; 
-            const rawVol = 1 - (e.clientY - rect.top) / rect.height; 
+            const time = (clientX - rect.left) / rect.width * tData.originalDuration; 
+            const rawVol = 1 - (clientY - rect.top) / rect.height; 
             const panVal = (rawVol * 2) - 1; 
             tData.panPoints.push({ time, value: panVal });
             drawPanAutomation(tData);
-        });
+        };
+        
+        panLayer.addEventListener('dblclick', addPanPoint);
+        panLayer.addEventListener('touchstart', (e) => {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastLayerTap;
+            if (tapLength < 300 && tapLength > 0) {
+                addPanPoint(e);
+                lastLayerTap = 0;
+                return;
+            }
+            lastLayerTap = currentTime;
+        }, {passive: false});
 
         ws.load(objUrl);
         tracks.push(tData);
@@ -509,7 +543,6 @@
 
         let isDrag = false, activeAction = null, sx = 0, sL = 0, sW = 0;
         
-        // iPad 修正：加入 Touch 事件支援拖拉
         const startAction = (e, action) => { 
             isDrag = true; activeAction = action; 
             sx = e.touches ? e.touches[0].clientX : e.clientX; 
@@ -604,11 +637,36 @@
             lbl.textContent = p.value === 0 ? 'C' : (p.value < 0 ? `L${Math.abs(Math.round(p.value*100))}` : `R${Math.round(p.value*100)}`);
             
             let isDraggingPoint = false;
+            let lastTap = 0; // 記錄此點的點擊時間
             
-            // iPad 修正：自動化點位的觸控支援
-            const startPtDrag = (e) => { isDraggingPoint = true; e.stopPropagation(); if(e.type==='touchstart') e.preventDefault(); };
+            // iPad 修正：自動化點位的觸控雙擊刪除與拖拉
+            const startPtDrag = (e) => { 
+                e.stopPropagation(); 
+                if(e.type === 'touchstart') {
+                    e.preventDefault();
+                    const currentTime = new Date().getTime();
+                    const tapLength = currentTime - lastTap;
+                    
+                    if (tapLength < 300 && tapLength > 0) {
+                        t.panPoints.splice(idx, 1); 
+                        drawPanAutomation(t); 
+                        lastTap = 0; 
+                        return;
+                    }
+                    lastTap = currentTime;
+                }
+                isDraggingPoint = true; 
+            };
+
             dot.addEventListener('mousedown', startPtDrag);
             dot.addEventListener('touchstart', startPtDrag, {passive: false});
+            
+            // 支援電腦版的雙擊刪除
+            dot.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                t.panPoints.splice(idx, 1); 
+                drawPanAutomation(t);
+            });
 
             const movePtDrag = (e) => {
                 if(!isDraggingPoint) return;
@@ -685,10 +743,9 @@
         const file = e.target.files[0];
         if (!file) return;
         
-        unlockAudioContext(); // 確保上傳時 Context 是解鎖的
+        unlockAudioContext(); 
 
         try {
-            // iPad 修正：改用 arrayBuffer() 確保 iOS Safari 穩定讀取
             const arrayBuffer = await file.arrayBuffer();
             const zip = await JSZip.loadAsync(arrayBuffer);
             const projFile = zip.file("project.json");
@@ -704,7 +761,7 @@
                 t.wavesurfer.destroy(); 
                 t.sidebarRow.remove(); 
                 t.trackRow.remove(); 
-                URL.revokeObjectURL(t.objectUrl); // 清理舊記憶體
+                URL.revokeObjectURL(t.objectUrl); 
             });
             tracks = [];
 
