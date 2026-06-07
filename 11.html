@@ -494,6 +494,22 @@
         const attemptDeleteVolPoint = (e) => {
             // 如果不在音量編輯模式，則不處理
             if (wsCont.style.pointerEvents === 'none') return false; 
+
+
+            let clientX = 0, clientY = 0;
+            // 兼容 mouse 與 touch 事件 (包含 touchend)
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else if (e.changedTouches && e.changedTouches.length > 0) {
+                clientX = e.changedTouches[0].clientX;
+                clientY = e.changedTouches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+
             
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -505,8 +521,8 @@
             const points = tData.envelope.getPoints() || [];
             
             // 點擊判定寬容度：大約 30 px 範圍
-            const timeThreshold = (30 / rect.width) * tData.originalDuration; 
-            const volThreshold = 30 / rect.height; 
+            const timeThreshold = (40 / rect.width) * tData.originalDuration; 
+            const volThreshold = 40 / rect.height; 
             
             let pointToRemove = -1;
             let minDiff = 9999;
@@ -533,6 +549,14 @@
             return false;
         };
 
+        wsCont.addEventListener('contextmenu', (e) => {
+            e.preventDefault();   // 永遠阻擋瀏覽器預設右鍵選單
+            e.stopPropagation();
+            attemptDeleteVolPoint(e); // 執行刪除
+        }, { capture: true });
+
+
+        
         // 攔截雙擊事件 (電腦與部分行動裝置觸發)
         wsCont.addEventListener('dblclick', (e) => {
             if (attemptDeleteVolPoint(e)) {
@@ -591,6 +615,7 @@
         
         panLayer.addEventListener('dblclick', addPanPoint);
         panLayer.addEventListener('touchstart', (e) => {
+            e.preventDefault();
             const currentTime = new Date().getTime();
             const tapLength = currentTime - lastLayerTap;
             if (tapLength < 300 && tapLength > 0) {
