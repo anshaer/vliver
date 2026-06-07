@@ -131,6 +131,7 @@
 
     ],
     "gallery": [
+        { "title": "01", "url": "image/00.png" }, 
         { "title": "01", "url": "image/01.png" }, 
         { "title": "02", "url": "image/02.png" },
         { "title": "03", "url": "image/03.png" },
