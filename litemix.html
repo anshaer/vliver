@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LiteMix</title>
+    <title>LITEMIX v0.8.8 β 2 </title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
@@ -156,7 +156,7 @@
 
 <div class="toolbar">
     <div class="toolbar-group">
-        <h1>LITEMIX v0.8.7 β 1 </h1>
+        <h1>LITEMIX v0.8.8 β 2 </h1>
         <label class="btn btn-primary" title="新增一個或多個 WAV/MP3 音軌">
             <input type="file" id="audio-upload" accept="audio/*" multiple>📁 新增音軌
         </label>
@@ -176,8 +176,12 @@
         </div>
         
         <div class="control-group" title="按住 Ctrl + 滾輪可縮放時間軸">🔍 縮放: <span id="zoom-val">100%</span></div>
-        
-        <div class="control-group">
+       
+
+
+
+
+       <div class="control-group" style="display:none">
             <input type="checkbox" id="snap-toggle"> <label for="snap-toggle" style="cursor:pointer;">游標磁吸</label>
             <select id="snap-grid">
                 <option value="1">1s</option>
@@ -186,6 +190,10 @@
             </select>
         </div>
         
+
+
+
+
     </div>
 
     <div class="toolbar-group">
@@ -274,10 +282,14 @@
 
     const snapToggle = document.getElementById('snap-toggle');
     const snapGrid = document.getElementById('snap-grid');
-    function applySnap(timeSec) {
-        if (!snapToggle.checked) return timeSec;
-        return Math.round(timeSec / parseFloat(snapGrid.value)) * parseFloat(snapGrid.value);
-    }
+function applySnap(time) {
+    if (!snapToggle || !snapGrid) return time;
+
+    if (!snapToggle.checked) return time;
+
+    const grid = parseFloat(snapGrid.value);
+    return Math.round(time / grid) * grid;
+}
 
     const playheadInput = document.getElementById('playhead-input');
     const expStartInput = document.getElementById('exp-start-input');
